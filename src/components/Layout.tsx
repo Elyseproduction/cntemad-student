@@ -12,8 +12,17 @@ const tabs = [
 ];
 
 // Online presence context (app-wide)
-const OnlineContext = createContext(0);
-export const useOnlineCount = () => useContext(OnlineContext);
+export interface OnlineUser {
+  username: string;
+  color: string;
+}
+interface OnlineContextType {
+  count: number;
+  users: OnlineUser[];
+}
+const OnlineContext = createContext<OnlineContextType>({ count: 0, users: [] });
+export const useOnlineCount = () => useContext(OnlineContext).count;
+export const useOnlineUsers = () => useContext(OnlineContext);
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { isAdmin, logout, darkMode, toggleDarkMode, activeTab, setActiveTab } = useApp();

@@ -99,6 +99,20 @@ export function CommunityPage() {
     const text = input;
     setInput('');
     setShowEmoji(false);
+
+    // Optimistic update — show message instantly
+    const optimisticMsg: Message = {
+      id: `temp-${Date.now()}`,
+      auteur: username,
+      avatar: username[0].toUpperCase(),
+      couleur: userColor,
+      contenu: text,
+      type: 'text',
+      created_at: new Date().toISOString(),
+      reactions: {},
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+
     await supabase.from('community_messages').insert({
       auteur: username,
       avatar: username[0].toUpperCase(),

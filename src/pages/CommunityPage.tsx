@@ -13,7 +13,7 @@ interface Message {
   type: string;
   image_url?: string;
   created_at: string;
-  reactions: Record<string, number>;
+  reactions: Record<string, string[]>;
   is_deleted?: boolean;
   is_edited?: boolean;
   reply_to?: string | null;
@@ -65,7 +65,7 @@ export function CommunityPage() {
     if (!error && data) {
       setMessages(data.map(m => ({
         ...m,
-        reactions: (m.reactions as Record<string, number>) || {},
+        reactions: (m.reactions as Record<string, string[]>) || {},
       })));
     }
     setLoading(false);
@@ -82,11 +82,11 @@ export function CommunityPage() {
             const exists = prev.some(m => m.id === newMsg.id);
             const filtered = prev.filter(m => !(m.id.startsWith('temp-') && m.auteur === newMsg.auteur && m.contenu === newMsg.contenu));
             if (exists) return prev;
-            return [...filtered, { ...newMsg, reactions: (newMsg.reactions as Record<string, number>) || {} }];
+            return [...filtered, { ...newMsg, reactions: (newMsg.reactions as Record<string, string[]>) || {} }];
           });
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as any;
-          setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated, reactions: (updated.reactions as Record<string, number>) || {} } : m));
+          setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated, reactions: (updated.reactions as Record<string, string[]>) || {} } : m));
         } else if (payload.eventType === 'DELETE') {
           const old = payload.old as any;
           if (old?.id) setMessages(prev => prev.filter(m => m.id !== old.id));
@@ -175,8 +175,20 @@ export function CommunityPage() {
   const addReaction = async (msgId: string, emoji: string) => {
     const msg = messages.find(m => m.id === msgId);
     if (!msg) return;
-    const reactions = { ...msg.reactions };
-    reactions[emoji] = (reactions[emoji] || 0) + 1;
+    const reactions: Record<string, string[]> = {};
+    // Deep copy
+    for (const [key, val] of Object.entries(msg.reactions)) {
+      reactions[key] = Array.isArray(val) ? [...val] : [];
+    }
+    const users = reactions[emoji] || [];
+    if (users.includes(username)) {
+      // Remove reaction (toggle off)
+      reactions[emoji] = users.filter(u => u !== username);
+      if (reactions[emoji].length === 0) delete reactions[emoji];
+    } else {
+      // Add reaction (toggle on)
+      reactions[emoji] = [...users, username];
+    }
     await supabase.from('community_messages').update({ reactions }).eq('id', msgId);
   };
 
@@ -387,11 +399,15 @@ export function CommunityPage() {
                 {/* Reactions */}
                 {!isDeleted && (
                   <div className="flex items-center gap-1 mt-1 flex-wrap">
-                    {Object.entries(msg.reactions).filter(([, count]) => count > 0).map(([emoji, count]) => (
-                      <button key={emoji} onClick={() => addReaction(msg.id, emoji)} className="text-xs px-2 py-0.5 rounded-full bg-muted hover:bg-muted/80 transition-colors">
-                        {emoji} {count}
-                      </button>
-                    ))}
+                    {Object.entries(msg.reactions).filter(([, users]) => Array.isArray(users) && users.length > 0).map(([emoji, users]) => {
+                      const userList = Array.isArray(users) ? users : [];
+                      const iReacted = userList.includes(username);
+                      return (
+                        <button key={emoji} onClick={() => addReaction(msg.id, emoji)} className={`text-xs px-2 py-0.5 rounded-full transition-colors ${iReacted ? 'bg-primary/20 ring-1 ring-primary/50' : 'bg-muted hover:bg-muted/80'}`}>
+                          {emoji} {userList.length}
+                        </button>
+                      );
+                    })}
                     <div className="flex gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity">
                       {reactionEmojis.map(e => (
                         <button key={e} onClick={() => addReaction(msg.id, e)} className="text-xs p-1 hover:bg-muted rounded transition-colors">

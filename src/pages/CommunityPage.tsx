@@ -440,15 +440,18 @@ export function CommunityPage() {
                       </div>
                     )
                   )}
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    {!isMe && (
-                      <>
-                        <span className="font-medium text-foreground mr-1">{msg.auteur}</span>
-                        {allProfiles.find(p => p.display_name === msg.auteur)?.is_admin_badge && (
-                          <ShieldCheck size={12} className="text-primary shrink-0" />
-                        )}
-                      </>
-                    )}
+                   <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                     {!isMe && (
+                       <>
+                         <span className="font-medium text-foreground mr-1">{msg.auteur}</span>
+                         {allProfiles.find(p => p.display_name === msg.auteur)?.is_developer && (
+                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-accent/20 text-accent font-semibold"><Code size={11} /> Dev</span>
+                         )}
+                         {allProfiles.find(p => p.display_name === msg.auteur)?.is_admin_badge && (
+                           <ShieldCheck size={12} className="text-primary shrink-0" />
+                         )}
+                       </>
+                     )}
                     {formatTime(msg.created_at)}
                     {msg.is_edited && !isDeleted && <span className="ml-1 italic">(modifié)</span>}
                   </span>

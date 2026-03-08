@@ -73,8 +73,8 @@ export function CommunityPage() {
     const fetchProfiles = async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('display_name, avatar_url');
-      if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ display_name: p.display_name!, avatar_url: p.avatar_url })));
+        .select('display_name, avatar_url, is_admin_badge');
+      if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ display_name: p.display_name!, avatar_url: p.avatar_url, is_admin_badge: (p as any).is_admin_badge ?? false })));
     };
     fetchProfiles();
   }, []);

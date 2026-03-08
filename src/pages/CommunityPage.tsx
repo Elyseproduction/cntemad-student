@@ -85,7 +85,8 @@ export function CommunityPage() {
       })
       .subscribe();
 
-    const pollInterval = setInterval(() => { fetchMessages(); }, 1000);
+    // Polling de secours toutes les 10s (le realtime gère l'instantané)
+    const pollInterval = setInterval(() => { fetchMessages(); }, 10000);
 
     return () => {
       supabase.removeChannel(msgChannel);

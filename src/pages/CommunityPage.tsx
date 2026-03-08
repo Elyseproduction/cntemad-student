@@ -124,13 +124,88 @@ export function CommunityPage() {
     return () => document.removeEventListener('click', handler);
   }, [activeMenu]);
 
+  // Mention logic
+  const filteredMentionUsers = onlineUsers
+    .filter(u => u.username !== username)
+    .filter(u => !mentionFilter || u.username.toLowerCase().includes(mentionFilter.toLowerCase()));
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInput(val);
+
+    // Detect "@" trigger
+    const cursorPos = e.target.selectionStart || val.length;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const atMatch = textBeforeCursor.match(/@(\w*)$/);
+    if (atMatch) {
+      setShowMentions(true);
+      setMentionFilter(atMatch[1]);
+      setMentionIndex(0);
+    } else {
+      setShowMentions(false);
+      setMentionFilter('');
+    }
+  };
+
+  const insertMention = (mentionUsername: string) => {
+    const cursorPos = inputRef.current?.selectionStart || input.length;
+    const textBeforeCursor = input.slice(0, cursorPos);
+    const textAfterCursor = input.slice(cursorPos);
+    const newBefore = textBeforeCursor.replace(/@(\w*)$/, `@${mentionUsername} `);
+    setInput(newBefore + textAfterCursor);
+    setShowMentions(false);
+    setMentionFilter('');
+    inputRef.current?.focus();
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showMentions && filteredMentionUsers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex(prev => (prev + 1) % filteredMentionUsers.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex(prev => (prev - 1 + filteredMentionUsers.length) % filteredMentionUsers.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        insertMention(filteredMentionUsers[mentionIndex].username);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowMentions(false);
+        return;
+      }
+    }
+    if (e.key === 'Enter') sendMessage();
+  };
+
+  // Notify mentioned users via toast (for online users)
+  const notifyMentionedUsers = (text: string) => {
+    const mentions = text.match(/@(\w+)/g);
+    if (!mentions) return;
+    // We show a toast for the sender confirming mentions were sent
+    const mentionedNames = mentions.map(m => m.slice(1));
+    const onlineNames = onlineUsers.map(u => u.username);
+    const notified = mentionedNames.filter(n => onlineNames.includes(n) && n !== username);
+    if (notified.length > 0) {
+      toast({ title: '📢 Mention envoyée', description: `${notified.join(', ')} sera notifié(e)` });
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim()) return;
     const text = input;
     setInput('');
     setShowEmoji(false);
+    setShowMentions(false);
     const replyId = replyTo?.id || null;
     setReplyTo(null);
+
+    notifyMentionedUsers(text);
 
     const optimisticMsg: Message = {
       id: `temp-${Date.now()}`,

@@ -330,7 +330,7 @@ export function CommunityPage() {
       )}
 
       {/* Input */}
-      <div className="flex items-center gap-2 pt-3 border-t border-border">
+      <div className="flex items-center gap-2 pt-3 border-t border-border shrink-0">
         <input
           ref={fileInputRef}
           type="file"

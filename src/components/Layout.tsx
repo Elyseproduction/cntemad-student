@@ -243,5 +243,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <AdminModal open={showAdmin} onClose={() => setShowAdmin(false)} />
     </div>
+    </OnlineContext.Provider>
   );
 }

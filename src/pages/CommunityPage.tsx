@@ -176,9 +176,9 @@ export function CommunityPage() {
     const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
     const fileType = getFileType(file);
     await supabase.from('community_messages').insert({
-      auteur: username, avatar: username[0].toUpperCase(), couleur: userColor,
+      auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
       contenu: getFileLabel(file), type: fileType,
-      image_url: urlData.publicUrl, reactions: {},
+      image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
     });
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';

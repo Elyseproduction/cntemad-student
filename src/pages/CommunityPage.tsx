@@ -129,7 +129,7 @@ export function CommunityPage() {
     const optimisticMsg: Message = {
       id: `temp-${Date.now()}`,
       auteur: username,
-      avatar: username[0].toUpperCase(),
+      avatar: userAvatar || username[0].toUpperCase(),
       couleur: userColor,
       contenu: text,
       type: 'text',
@@ -141,12 +141,13 @@ export function CommunityPage() {
 
     await supabase.from('community_messages').insert({
       auteur: username,
-      avatar: username[0].toUpperCase(),
+      avatar: userAvatar || username[0].toUpperCase(),
       couleur: userColor,
       contenu: text,
       type: 'text',
       reactions: {},
       reply_to: replyId,
+      user_id: user?.id,
     });
   };
 

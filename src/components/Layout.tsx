@@ -139,7 +139,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <OnlineContext.Provider value={onlineCount}>
+    <OnlineContext.Provider value={{ count: onlineCount, users: onlineUsers }}>
     <div className="min-h-screen gradient-mesh">
       {/* Desktop Sidebar */}
       <aside className={`fixed left-0 top-0 h-full z-40 hidden md:flex flex-col transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-20'} bg-card/80 backdrop-blur-xl border-r border-border`}>

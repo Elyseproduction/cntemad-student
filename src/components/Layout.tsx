@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { BookOpen, Brain, MessageCircle, Video, Settings, LogOut, Moon, Sun, Lock, Menu, X } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { AdminModal } from '@/components/AdminModal';
@@ -11,6 +11,10 @@ const tabs = [
   { id: 'videos', label: 'Vidéothèque', icon: Video, emoji: '🎬' },
 ];
 
+// Online presence context (app-wide)
+const OnlineContext = createContext(0);
+export const useOnlineCount = () => useContext(OnlineContext);
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const { isAdmin, logout, darkMode, toggleDarkMode, activeTab, setActiveTab } = useApp();
   const [showAdmin, setShowAdmin] = useState(false);
@@ -18,6 +22,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [lastSeenCount, setLastSeenCount] = useState(0);
+  const [onlineCount, setOnlineCount] = useState(0);
+
+  // App-wide presence tracking
+  useEffect(() => {
+    const username = localStorage.getItem('community_username') || 'user';
+    const userColor = localStorage.getItem('community_color') || '#6C63FF';
+
+    const presenceChannel = supabase.channel('app_presence', {
+      config: { presence: { key: `${username}-${Date.now()}` } },
+    });
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        setOnlineCount(Object.keys(presenceChannel.presenceState()).length);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({ username, color: userColor, online_at: new Date().toISOString() });
+        }
+      });
+
+    return () => { supabase.removeChannel(presenceChannel); };
+  }, []);
 
   const fetchMessageCount = useCallback(async () => {
     const { count } = await supabase

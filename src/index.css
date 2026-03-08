@@ -141,6 +141,18 @@
   .btn-glow:hover::after {
     @apply opacity-100;
   }
+  .skeleton {
+    @apply bg-muted animate-pulse rounded-lg;
+  }
+  .card-shine {
+    @apply relative overflow-hidden;
+  }
+  .card-shine::before {
+    content: '';
+    @apply absolute inset-0 -translate-x-full;
+    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.05), transparent);
+    animation: shine 3s ease-in-out infinite;
+  }
 }
 
 @layer utilities {

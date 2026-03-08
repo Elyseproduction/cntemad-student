@@ -32,7 +32,7 @@ export function CommunityPage() {
   const { users: onlineUsers } = useOnlineUsers();
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [allProfiles, setAllProfiles] = useState<{ display_name: string; avatar_url: string | null; is_admin_badge: boolean }[]>([]);
+  const [allProfiles, setAllProfiles] = useState<{ display_name: string; avatar_url: string | null; is_admin_badge: boolean; is_developer?: boolean }[]>([]);
   const [input, setInput] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(true);

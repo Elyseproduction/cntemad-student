@@ -538,6 +538,15 @@ export function CoursesPage() {
         <button onClick={() => setSelectedSubject(null)} className="flex items-center gap-2 mt-6 text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft size={18} /> Retour aux matières
         </button>
+
+        {showImportCourse && selectedSubject && (
+          <ImportCourseModal
+            open={showImportCourse}
+            onClose={() => setShowImportCourse(false)}
+            subjectName={currentSubject.nom}
+            onImport={handleImportChapter}
+          />
+        )}
       </div>
     );
   }

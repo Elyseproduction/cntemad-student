@@ -22,6 +22,7 @@ export function CommunityPage() {
   const [input, setInput] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [onlineCount, setOnlineCount] = useState(0);
   const [username] = useState(() => {
     const stored = localStorage.getItem('community_username');
     if (stored) return stored;
@@ -57,16 +58,35 @@ export function CommunityPage() {
   useEffect(() => {
     fetchMessages();
 
-    // Realtime subscription
-    const channel = supabase
+    // Realtime for messages
+    const msgChannel = supabase
       .channel('community_messages_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, () => {
         fetchMessages();
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchMessages]);
+    // Presence for online count
+    const presenceChannel = supabase.channel('community_presence', {
+      config: { presence: { key: username } },
+    });
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState();
+        setOnlineCount(Object.keys(state).length);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({ username, color: userColor });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(msgChannel);
+      supabase.removeChannel(presenceChannel);
+    };
+  }, [fetchMessages, username, userColor]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -114,12 +134,18 @@ export function CommunityPage() {
         <h1 className="font-heading font-bold text-2xl">💬 Communauté</h1>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Users size={16} />
-          <span>{Math.floor(Math.random() * 20) + 5} en ligne</span>
+          <span>{onlineCount} en ligne</span>
         </div>
       </div>
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-2">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+            <p className="text-lg">Aucun message pour le moment</p>
+            <p className="text-sm">Soyez le premier à écrire ! 💬</p>
+          </div>
+        )}
         {messages.map((msg) => {
           const isMe = msg.auteur === username;
           return (

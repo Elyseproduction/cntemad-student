@@ -65,7 +65,7 @@ export function CommunityPage() {
     if (!error && data) {
       setMessages(data.map(m => ({
         ...m,
-        reactions: (m.reactions as Record<string, number>) || {},
+        reactions: (m.reactions as Record<string, string[]>) || {},
       })));
     }
     setLoading(false);

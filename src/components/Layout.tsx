@@ -12,8 +12,17 @@ const tabs = [
 ];
 
 // Online presence context (app-wide)
-const OnlineContext = createContext(0);
-export const useOnlineCount = () => useContext(OnlineContext);
+export interface OnlineUser {
+  username: string;
+  color: string;
+}
+interface OnlineContextType {
+  count: number;
+  users: OnlineUser[];
+}
+const OnlineContext = createContext<OnlineContextType>({ count: 0, users: [] });
+export const useOnlineCount = () => useContext(OnlineContext).count;
+export const useOnlineUsers = () => useContext(OnlineContext);
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { isAdmin, logout, darkMode, toggleDarkMode, activeTab, setActiveTab } = useApp();
@@ -23,6 +32,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [lastSeenCount, setLastSeenCount] = useState(0);
   const [onlineCount, setOnlineCount] = useState(0);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
 
   // App-wide presence tracking
   useEffect(() => {
@@ -35,7 +45,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
     presenceChannel
       .on('presence', { event: 'sync' }, () => {
-        setOnlineCount(Object.keys(presenceChannel.presenceState()).length);
+        const state = presenceChannel.presenceState();
+        const keys = Object.keys(state);
+        setOnlineCount(keys.length);
+        const users: OnlineUser[] = [];
+        const seen = new Set<string>();
+        for (const key of keys) {
+          const presences = state[key] as any[];
+          for (const p of presences) {
+            if (p.username && !seen.has(p.username)) {
+              seen.add(p.username);
+              users.push({ username: p.username, color: p.color || '#6C63FF' });
+            }
+          }
+        }
+        setOnlineUsers(users);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -115,7 +139,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <OnlineContext.Provider value={onlineCount}>
+    <OnlineContext.Provider value={{ count: onlineCount, users: onlineUsers }}>
     <div className="min-h-screen gradient-mesh">
       {/* Desktop Sidebar */}
       <aside className={`fixed left-0 top-0 h-full z-40 hidden md:flex flex-col transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-20'} bg-card/80 backdrop-blur-xl border-r border-border`}>

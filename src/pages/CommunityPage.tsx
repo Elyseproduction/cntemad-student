@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut } from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useOnlineCount } from '@/components/Layout';
+import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
 import { GoogleLoginButton } from '@/components/GoogleLoginButton';
 
@@ -29,6 +29,7 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024;
 export function CommunityPage() {
   const { toast } = useToast();
   const onlineCount = useOnlineCount();
+  const { users: onlineUsers } = useOnlineUsers();
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -40,8 +41,12 @@ export function CommunityPage() {
   const [editingMsg, setEditingMsg] = useState<string | null>(null);
   const [editInput, setEditInput] = useState('');
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState('');
+  const [mentionIndex, setMentionIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
   const userAvatar = profile?.avatar_url || '';
@@ -69,6 +74,10 @@ export function CommunityPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new as any;
+          // Check if current user is mentioned
+          if (newMsg.auteur !== username && newMsg.contenu?.includes(`@${username}`)) {
+            toast({ title: `💬 ${newMsg.auteur} vous a mentionné`, description: newMsg.contenu.slice(0, 80) });
+          }
           setMessages(prev => {
             const exists = prev.some(m => m.id === newMsg.id);
             const filtered = prev.filter(m => !(m.id.startsWith('temp-') && m.auteur === newMsg.auteur && m.contenu === newMsg.contenu));
@@ -119,13 +128,88 @@ export function CommunityPage() {
     return () => document.removeEventListener('click', handler);
   }, [activeMenu]);
 
+  // Mention logic
+  const filteredMentionUsers = onlineUsers
+    .filter(u => u.username !== username)
+    .filter(u => !mentionFilter || u.username.toLowerCase().includes(mentionFilter.toLowerCase()));
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInput(val);
+
+    // Detect "@" trigger
+    const cursorPos = e.target.selectionStart || val.length;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const atMatch = textBeforeCursor.match(/@(\w*)$/);
+    if (atMatch) {
+      setShowMentions(true);
+      setMentionFilter(atMatch[1]);
+      setMentionIndex(0);
+    } else {
+      setShowMentions(false);
+      setMentionFilter('');
+    }
+  };
+
+  const insertMention = (mentionUsername: string) => {
+    const cursorPos = inputRef.current?.selectionStart || input.length;
+    const textBeforeCursor = input.slice(0, cursorPos);
+    const textAfterCursor = input.slice(cursorPos);
+    const newBefore = textBeforeCursor.replace(/@(\w*)$/, `@${mentionUsername} `);
+    setInput(newBefore + textAfterCursor);
+    setShowMentions(false);
+    setMentionFilter('');
+    inputRef.current?.focus();
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showMentions && filteredMentionUsers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex(prev => (prev + 1) % filteredMentionUsers.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex(prev => (prev - 1 + filteredMentionUsers.length) % filteredMentionUsers.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        insertMention(filteredMentionUsers[mentionIndex].username);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowMentions(false);
+        return;
+      }
+    }
+    if (e.key === 'Enter') sendMessage();
+  };
+
+  // Notify mentioned users via toast (for online users)
+  const notifyMentionedUsers = (text: string) => {
+    const mentions = text.match(/@(\w+)/g);
+    if (!mentions) return;
+    // We show a toast for the sender confirming mentions were sent
+    const mentionedNames = mentions.map(m => m.slice(1));
+    const onlineNames = onlineUsers.map(u => u.username);
+    const notified = mentionedNames.filter(n => onlineNames.includes(n) && n !== username);
+    if (notified.length > 0) {
+      toast({ title: '📢 Mention envoyée', description: `${notified.join(', ')} sera notifié(e)` });
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim()) return;
     const text = input;
     setInput('');
     setShowEmoji(false);
+    setShowMentions(false);
     const replyId = replyTo?.id || null;
     setReplyTo(null);
+
+    notifyMentionedUsers(text);
 
     const optimisticMsg: Message = {
       id: `temp-${Date.now()}`,
@@ -251,6 +335,20 @@ export function CommunityPage() {
   const replyToMessage = (msg: Message) => {
     setActiveMenu(null);
     setReplyTo(msg);
+  };
+
+  const renderMentionText = (text: string, isMe: boolean) => {
+    const parts = text.split(/(@\w+)/g);
+    return parts.map((part, i) => {
+      if (part.match(/^@\w+$/)) {
+        return (
+          <span key={i} className={`font-semibold ${isMe ? 'text-primary-foreground/90 underline' : 'text-primary'}`}>
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
   };
 
   const formatTime = (dateStr: string) => new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -432,7 +530,9 @@ export function CommunityPage() {
                           </div>
                         ) : (
                           <div className={`p-3 ${isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                            <p className="text-sm leading-relaxed">{msg.contenu}</p>
+                            <p className="text-sm leading-relaxed">
+                              {renderMentionText(msg.contenu, isMe)}
+                            </p>
                           </div>
                         )
                       )}
@@ -487,6 +587,26 @@ export function CommunityPage() {
         </div>
       )}
 
+      {/* Mention dropdown */}
+      {showMentions && filteredMentionUsers.length > 0 && (
+        <div className="bg-popover border border-border rounded-xl shadow-lg py-1 mb-1 max-h-40 overflow-y-auto animate-fade-in">
+          <div className="px-3 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Utilisateurs en ligne</div>
+          {filteredMentionUsers.map((u, i) => (
+            <button
+              key={u.username}
+              onClick={() => insertMention(u.username)}
+              className={`flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors ${i === mentionIndex ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'}`}
+            >
+              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground shrink-0" style={{ backgroundColor: u.color }}>
+                {u.username[0]?.toUpperCase()}
+              </div>
+              <span className="truncate">{u.username}</span>
+              <span className="ml-auto w-2 h-2 rounded-full bg-green-500 shrink-0" />
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Reply banner */}
       {replyTo && (
         <div className="flex items-center gap-2 px-3 py-2 bg-secondary/80 rounded-t-xl border-l-2 border-primary text-sm animate-fade-in">
@@ -512,10 +632,11 @@ export function CommunityPage() {
           </button>
         </div>
         <input
+          ref={inputRef}
           value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && sendMessage()}
-          placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Aa'}
+          onChange={handleInputChange}
+          onKeyDown={handleInputKeyDown}
+          placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
           className="flex-1 min-w-0 px-4 py-2 rounded-full bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm"
         />
         <button onClick={sendMessage} disabled={!input.trim()} className="p-2 rounded-full text-primary hover:bg-secondary transition-colors disabled:opacity-30 shrink-0">

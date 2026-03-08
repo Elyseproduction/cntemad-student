@@ -48,19 +48,23 @@ export function ExercisesPage() {
     return subject?.chapitres.filter(c => c.published) || [];
   }, [subjects, selectedSubject]);
 
+  const [loadingStep, setLoadingStep] = useState('');
+
   const handleGenerate = async () => {
     const chapter = chapters.find(c => c.id === selectedChapter);
     const subject = subjects.find(s => s.id === selectedSubject);
     if (!chapter || !subject) return;
 
     setLoading(true);
+    setLoadingStep('Analyse du chapitre en cours...');
 
-    // Build chapter content from sections
     const chapterContent = chapter.sections
       .map(s => `[${s.type}] ${s.titre}: ${s.contenu}`)
       .join('\n\n');
 
     try {
+      setLoadingStep('🤖 L\'IA génère vos exercices...');
+      
       const { data, error } = await supabase.functions.invoke('generate-exercises', {
         body: {
           chapterTitle: chapter.titre,
@@ -73,10 +77,13 @@ export function ExercisesPage() {
       if (error) throw error;
 
       if (data?.error) {
-        toast({ title: 'Erreur', description: data.error, variant: 'destructive' });
+        toast({ title: 'Erreur IA', description: data.error, variant: 'destructive' });
         setLoading(false);
+        setLoadingStep('');
         return;
       }
+
+      setLoadingStep('Préparation du quiz...');
 
       const generated: Exercise[] = (data?.exercices || []).map((ex: any, i: number) => ({
         ...ex,
@@ -87,6 +94,7 @@ export function ExercisesPage() {
       if (generated.length === 0) {
         toast({ title: 'Erreur', description: "L'IA n'a pas pu générer d'exercices. Réessayez.", variant: 'destructive' });
         setLoading(false);
+        setLoadingStep('');
         return;
       }
 
@@ -102,6 +110,7 @@ export function ExercisesPage() {
       toast({ title: 'Erreur', description: e.message || "Impossible de générer les exercices", variant: 'destructive' });
     } finally {
       setLoading(false);
+      setLoadingStep('');
     }
   };
 

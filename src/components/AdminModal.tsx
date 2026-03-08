@@ -51,7 +51,7 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
     if (open && isAdmin) {
       supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, is_admin_badge')
+        .select('id, display_name, avatar_url, is_admin_badge, is_developer')
         .then(({ data }) => {
           if (data) setProfiles(data as ProfileItem[]);
         });

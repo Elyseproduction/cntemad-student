@@ -516,7 +516,9 @@ export function CommunityPage() {
                           </div>
                         ) : (
                           <div className={`p-3 ${isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                            <p className="text-sm leading-relaxed">{msg.contenu}</p>
+                            <p className="text-sm leading-relaxed">
+                              {renderMentionText(msg.contenu, isMe)}
+                            </p>
                           </div>
                         )
                       )}

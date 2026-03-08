@@ -35,9 +35,9 @@ function SectionRenderer({ section }: { section: Chapter['sections'][0] }) {
   switch (section.type) {
     case 'h1':
       return (
-        <div className="mt-6 md:mt-8 mb-3 md:mb-4">
-          <h2 className="section-h1 pb-2 border-b border-primary/30">{section.titre}</h2>
-          <p className="mt-2 md:mt-3 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words">{renderContent(section.contenu, section.mots_cles)}</p>
+        <div className="mt-6 md:mt-8 mb-3 md:mb-4 overflow-hidden">
+          <h2 className="section-h1 pb-2 border-b border-primary/30 break-words">{section.titre}</h2>
+          <p className="mt-2 md:mt-3 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words overflow-hidden">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'h2':

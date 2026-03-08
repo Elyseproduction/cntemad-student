@@ -46,10 +46,20 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
             <Lock size={28} className="text-primary-foreground" />
           </div>
           <h2 className="font-heading font-bold text-xl mb-2">Mode Admin actif</h2>
-          <p className="text-muted-foreground text-sm mb-4">Vous avez accès à toutes les fonctionnalités d'administration.</p>
-          <button onClick={onClose} className="px-6 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity">
-            Fermer
-          </button>
+          <p className="text-muted-foreground text-sm mb-6">Vous avez accès à toutes les fonctionnalités d'administration.</p>
+          <div className="space-y-3">
+            <button
+              onClick={clearAllMessages}
+              disabled={clearing}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-destructive text-destructive-foreground font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              <Trash2 size={16} />
+              {clearing ? 'Suppression...' : 'Effacer toutes les conversations'}
+            </button>
+            <button onClick={onClose} className="w-full px-6 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity">
+              Fermer
+            </button>
+          </div>
         </div>
       </div>
     );

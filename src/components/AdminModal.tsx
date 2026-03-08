@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Lock, Eye, EyeOff, Trash2, AlertTriangle, Shield, ShieldCheck } from 'lucide-react';
+import { Lock, Eye, EyeOff, Trash2, AlertTriangle, Shield, ShieldCheck, Code } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -9,6 +9,7 @@ interface ProfileItem {
   display_name: string | null;
   avatar_url: string | null;
   is_admin_badge: boolean;
+  is_developer?: boolean;
 }
 
 function ConfirmDialog({ open, onConfirm, onCancel, loading }: { open: boolean; onConfirm: () => void; onCancel: () => void; loading: boolean }) {
@@ -50,7 +51,7 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
     if (open && isAdmin) {
       supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, is_admin_badge')
+        .select('id, display_name, avatar_url, is_admin_badge, is_developer')
         .then(({ data }) => {
           if (data) setProfiles(data as ProfileItem[]);
         });
@@ -72,6 +73,25 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
       toast({
         title: newValue ? '🛡️ Badge activé' : 'Badge retiré',
         description: `${profile.display_name || 'Utilisateur'} ${newValue ? 'a maintenant le badge admin' : "n'a plus le badge admin"}.`,
+      });
+    }
+  };
+
+  const toggleDeveloper = async (profile: ProfileItem) => {
+    setTogglingId(profile.id);
+    const newValue = !profile.is_developer;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_developer: newValue } as any)
+      .eq('id', profile.id);
+    setTogglingId(null);
+    if (error) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } else {
+      setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, is_developer: newValue } : p));
+      toast({
+        title: newValue ? '💻 Développeur' : 'Statut retiré',
+        description: `${profile.display_name || 'Utilisateur'} ${newValue ? 'est maintenant développeur' : "n'est plus développeur"}.`,
       });
     }
   };
@@ -124,33 +144,51 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
                   <p className="text-xs text-muted-foreground text-center py-2">Chargement...</p>
                 )}
                 {profiles.map(p => (
-                  <div key={p.id} className="flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-secondary/50 transition-colors">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {p.avatar_url ? (
-                        <img src={p.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
-                      ) : (
-                        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                          {(p.display_name || '?')[0].toUpperCase()}
-                        </div>
-                      )}
-                      <span className="text-sm font-medium truncate">{p.display_name || 'Sans nom'}</span>
-                      {p.is_admin_badge && (
-                        <ShieldCheck size={14} className="text-primary shrink-0" />
-                      )}
-                    </div>
-                    <button
-                      onClick={() => toggleBadge(p)}
-                      disabled={togglingId === p.id}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
-                        p.is_admin_badge
-                          ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
-                          : 'bg-primary/10 text-primary hover:bg-primary/20'
-                      } disabled:opacity-50`}
-                    >
-                      {togglingId === p.id ? '...' : p.is_admin_badge ? 'Retirer' : 'Activer'}
-                    </button>
-                  </div>
-                ))}
+                   <div key={p.id} className="space-y-1.5 p-2 rounded-lg hover:bg-secondary/50 transition-colors">
+                     <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-2 min-w-0">
+                         {p.avatar_url ? (
+                           <img src={p.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                         ) : (
+                           <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                             {(p.display_name || '?')[0].toUpperCase()}
+                           </div>
+                         )}
+                         <div className="min-w-0 flex-1">
+                           <span className="text-sm font-medium truncate block">{p.display_name || 'Sans nom'}</span>
+                           <div className="flex items-center gap-1 mt-0.5">
+                             {p.is_developer && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs bg-accent/20 text-accent font-medium"><Code size={10} /> Dev</span>}
+                             {p.is_admin_badge && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs bg-primary/20 text-primary font-medium"><ShieldCheck size={10} /> Admin</span>}
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+                     <div className="flex gap-1.5 pl-9">
+                       <button
+                         onClick={() => toggleDeveloper(p)}
+                         disabled={togglingId === p.id}
+                         className={`px-2 py-1 rounded text-xs font-medium transition-all shrink-0 ${
+                           p.is_developer
+                             ? 'bg-accent/10 text-accent hover:bg-accent/20'
+                             : 'bg-muted hover:bg-muted/80'
+                         } disabled:opacity-50`}
+                       >
+                         {togglingId === p.id ? '...' : p.is_developer ? 'Dev ✓' : 'Développeur'}
+                       </button>
+                       <button
+                         onClick={() => toggleBadge(p)}
+                         disabled={togglingId === p.id}
+                         className={`px-2 py-1 rounded text-xs font-medium transition-all shrink-0 ${
+                           p.is_admin_badge
+                             ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                             : 'bg-muted hover:bg-muted/80'
+                         } disabled:opacity-50`}
+                       >
+                         {togglingId === p.id ? '...' : p.is_admin_badge ? 'Admin ✓' : 'Admin'}
+                       </button>
+                     </div>
+                   </div>
+                 ))}
               </div>
             </div>
 

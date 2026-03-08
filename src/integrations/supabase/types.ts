@@ -102,6 +102,7 @@ export type Database = {
           display_name: string | null
           id: string
           is_admin_badge: boolean
+          is_developer: boolean
         }
         Insert: {
           avatar_url?: string | null
@@ -109,6 +110,7 @@ export type Database = {
           display_name?: string | null
           id: string
           is_admin_badge?: boolean
+          is_developer?: boolean
         }
         Update: {
           avatar_url?: string | null
@@ -116,6 +118,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_admin_badge?: boolean
+          is_developer?: boolean
         }
         Relationships: []
       }

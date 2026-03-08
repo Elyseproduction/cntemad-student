@@ -210,7 +210,7 @@ export function CommunityPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)] flex flex-col animate-fade-in">
+    <div className="max-w-3xl mx-auto h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)] flex flex-col animate-fade-in overflow-hidden">
       <div className="flex items-center justify-between mb-4">
         <h1 className="font-heading font-bold text-2xl">💬 Communauté</h1>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

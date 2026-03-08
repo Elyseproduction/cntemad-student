@@ -24,41 +24,45 @@ export function useAuth() {
   });
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        const user = session?.user ?? null;
-        let profile: Profile | null = null;
+    let mounted = true;
 
-        if (user) {
-          const { data } = await supabase
-            .from('profiles')
-            .select('id, display_name, avatar_url')
-            .eq('id', user.id)
-            .single();
-          profile = data;
-        }
-
-        setState({ user, profile, session, loading: false });
-      }
-    );
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const user = session?.user ?? null;
-      let profile: Profile | null = null;
-
-      if (user) {
+    async function fetchProfile(userId: string): Promise<Profile | null> {
+      try {
         const { data } = await supabase
           .from('profiles')
           .select('id, display_name, avatar_url')
-          .eq('id', user.id)
+          .eq('id', userId)
           .single();
-        profile = data;
+        return data;
+      } catch {
+        return null;
       }
+    }
 
-      setState({ user, profile, session, loading: false });
+    // Set up auth listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!mounted) return;
+        const user = session?.user ?? null;
+        const profile = user ? await fetchProfile(user.id) : null;
+        if (mounted) setState({ user, profile, session, loading: false });
+      }
+    );
+
+    // Then check current session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      const user = session?.user ?? null;
+      const profile = user ? await fetchProfile(user.id) : null;
+      if (mounted) setState({ user, profile, session, loading: false });
+    }).catch(() => {
+      if (mounted) setState({ user: null, profile: null, session: null, loading: false });
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {

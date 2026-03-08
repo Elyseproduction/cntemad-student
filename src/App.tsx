@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { InstallBanner } from "@/components/InstallBanner";
 import { UpdateBanner } from "@/components/UpdateBanner";
+import { NotificationOverlay } from "@/components/NotificationOverlay";
 
 const queryClient = new QueryClient();
 

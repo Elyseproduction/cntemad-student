@@ -13,7 +13,7 @@ interface Message {
   type: string;
   image_url?: string;
   created_at: string;
-  reactions: Record<string, number>;
+  reactions: Record<string, string[]>;
   is_deleted?: boolean;
   is_edited?: boolean;
   reply_to?: string | null;

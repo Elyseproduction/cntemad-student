@@ -101,18 +101,21 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          is_admin_badge: boolean
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           id: string
+          is_admin_badge?: boolean
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          is_admin_badge?: boolean
         }
         Relationships: []
       }

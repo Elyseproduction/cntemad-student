@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign } from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,7 +32,7 @@ export function CommunityPage() {
   const { users: onlineUsers } = useOnlineUsers();
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [allProfiles, setAllProfiles] = useState<{ display_name: string; avatar_url: string | null }[]>([]);
+  const [allProfiles, setAllProfiles] = useState<{ display_name: string; avatar_url: string | null; is_admin_badge: boolean }[]>([]);
   const [input, setInput] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -73,8 +73,8 @@ export function CommunityPage() {
     const fetchProfiles = async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('display_name, avatar_url');
-      if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ display_name: p.display_name!, avatar_url: p.avatar_url })));
+        .select('display_name, avatar_url, is_admin_badge');
+      if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ display_name: p.display_name!, avatar_url: p.avatar_url, is_admin_badge: (p as any).is_admin_badge ?? false })));
     };
     fetchProfiles();
   }, []);
@@ -440,8 +440,15 @@ export function CommunityPage() {
                       </div>
                     )
                   )}
-                  <span className="text-xs text-muted-foreground">
-                    {!isMe && <span className="font-medium text-foreground mr-1">{msg.auteur}</span>}
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    {!isMe && (
+                      <>
+                        <span className="font-medium text-foreground mr-1">{msg.auteur}</span>
+                        {allProfiles.find(p => p.display_name === msg.auteur)?.is_admin_badge && (
+                          <ShieldCheck size={12} className="text-primary shrink-0" />
+                        )}
+                      </>
+                    )}
                     {formatTime(msg.created_at)}
                     {msg.is_edited && !isDeleted && <span className="ml-1 italic">(modifié)</span>}
                   </span>

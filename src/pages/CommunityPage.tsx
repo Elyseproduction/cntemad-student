@@ -99,6 +99,20 @@ export function CommunityPage() {
     const text = input;
     setInput('');
     setShowEmoji(false);
+
+    // Optimistic update — show message instantly
+    const optimisticMsg: Message = {
+      id: `temp-${Date.now()}`,
+      auteur: username,
+      avatar: username[0].toUpperCase(),
+      couleur: userColor,
+      contenu: text,
+      type: 'text',
+      created_at: new Date().toISOString(),
+      reactions: {},
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+
     await supabase.from('community_messages').insert({
       auteur: username,
       avatar: username[0].toUpperCase(),
@@ -196,7 +210,7 @@ export function CommunityPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)] flex flex-col animate-fade-in">
+    <div className="max-w-3xl mx-auto h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)] flex flex-col animate-fade-in overflow-hidden">
       <div className="flex items-center justify-between mb-4">
         <h1 className="font-heading font-bold text-2xl">💬 Communauté</h1>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -316,7 +330,7 @@ export function CommunityPage() {
       )}
 
       {/* Input */}
-      <div className="flex items-center gap-2 pt-3 border-t border-border">
+      <div className="flex items-center gap-2 pt-3 border-t border-border shrink-0">
         <input
           ref={fileInputRef}
           type="file"

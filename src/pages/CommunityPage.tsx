@@ -65,9 +65,24 @@ export function CommunityPage() {
   useEffect(() => {
     fetchMessages();
     const msgChannel = supabase
-      .channel('community_messages_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, () => {
-        fetchMessages();
+      .channel('community_messages_realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'community_messages' }, (payload) => {
+        const newMsg = payload.new as any;
+        setMessages(prev => {
+          // Avoid duplicates (from optimistic update)
+          const exists = prev.some(m => m.id === newMsg.id);
+          // Remove temp messages from same user if this is their real message
+          const filtered = prev.filter(m => !(m.id.startsWith('temp-') && m.auteur === newMsg.auteur && m.contenu === newMsg.contenu));
+          if (exists) return prev;
+          return [...filtered, {
+            ...newMsg,
+            reactions: (newMsg.reactions as Record<string, number>) || {},
+          }];
+        });
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'community_messages' }, (payload) => {
+        const updated = payload.new as any;
+        setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated, reactions: (updated.reactions as Record<string, number>) || {} } : m));
       })
       .subscribe();
 

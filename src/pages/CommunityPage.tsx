@@ -445,7 +445,7 @@ export function CommunityPage() {
                       <>
                         <span className="font-medium text-foreground mr-1">{msg.auteur}</span>
                         {allProfiles.find(p => p.display_name === msg.auteur)?.is_admin_badge && (
-                          <ShieldCheck size={12} className="text-primary shrink-0" title="Administrateur" />
+                          <ShieldCheck size={12} className="text-primary shrink-0" />
                         )}
                       </>
                     )}

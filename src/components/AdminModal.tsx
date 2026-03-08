@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Lock, Eye, EyeOff } from 'lucide-react';
+import { Lock, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export function AdminModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { isAdmin, login } = useApp();

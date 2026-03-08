@@ -58,6 +58,7 @@ const App = () => (
         <AuthGate>
           <AppContent />
         </AuthGate>
+        <InstallBanner />
       </AppProvider>
     </TooltipProvider>
   </QueryClientProvider>

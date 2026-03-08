@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useApp, Subject, Chapter } from '@/contexts/AppContext';
-import { ArrowLeft, Plus, Trash2, Search, ChevronRight, Upload, CheckCircle, RotateCcw, BookOpen } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Search, ChevronRight, Upload, CheckCircle, RotateCcw, BookOpen, FileUp, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const difficultyBadge = (d: string) => {
   if (d === 'Facile') return <span className="text-xs px-2 py-0.5 rounded-full bg-success/20 text-success">🟢 Facile</span>;

@@ -140,10 +140,12 @@ export function CommunityPage() {
     return () => document.removeEventListener('click', handler);
   }, [activeMenu]);
 
-  // Mention logic
-  const filteredMentionUsers = onlineUsers
-    .filter(u => u.username !== username)
-    .filter(u => !mentionFilter || u.username.toLowerCase().includes(mentionFilter.toLowerCase()));
+  // Mention logic - show all registered users, with online indicator
+  const onlineNames = new Set(onlineUsers.map(u => u.username));
+  const filteredMentionUsers = allProfiles
+    .filter(u => u.display_name !== username)
+    .filter(u => !mentionFilter || u.display_name.toLowerCase().includes(mentionFilter.toLowerCase()))
+    .map(u => ({ username: u.display_name, avatar_url: u.avatar_url, isOnline: onlineNames.has(u.display_name) }));
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;

@@ -399,11 +399,15 @@ export function CommunityPage() {
                 {/* Reactions */}
                 {!isDeleted && (
                   <div className="flex items-center gap-1 mt-1 flex-wrap">
-                    {Object.entries(msg.reactions).filter(([, count]) => count > 0).map(([emoji, count]) => (
-                      <button key={emoji} onClick={() => addReaction(msg.id, emoji)} className="text-xs px-2 py-0.5 rounded-full bg-muted hover:bg-muted/80 transition-colors">
-                        {emoji} {count}
-                      </button>
-                    ))}
+                    {Object.entries(msg.reactions).filter(([, users]) => Array.isArray(users) && users.length > 0).map(([emoji, users]) => {
+                      const userList = Array.isArray(users) ? users : [];
+                      const iReacted = userList.includes(username);
+                      return (
+                        <button key={emoji} onClick={() => addReaction(msg.id, emoji)} className={`text-xs px-2 py-0.5 rounded-full transition-colors ${iReacted ? 'bg-primary/20 ring-1 ring-primary/50' : 'bg-muted hover:bg-muted/80'}`}>
+                          {emoji} {userList.length}
+                        </button>
+                      );
+                    })}
                     <div className="flex gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity">
                       {reactionEmojis.map(e => (
                         <button key={e} onClick={() => addReaction(msg.id, e)} className="text-xs p-1 hover:bg-muted rounded transition-colors">

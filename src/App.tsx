@@ -11,7 +11,7 @@ import { VideoPage } from "@/pages/VideoPage";
 import { useAuth } from "@/hooks/useAuth";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { InstallBanner } from "@/components/InstallBanner";
-import { useAutoUpdate } from "@/hooks/useAutoUpdate";
+import { UpdateBanner } from "@/components/UpdateBanner";
 
 const queryClient = new QueryClient();
 

@@ -336,6 +336,7 @@ export function CoursesPage() {
     ));
   };
 
+  const handleDeleteChapter = (chapterId: string) => {
     if (!selectedSubject) return;
     setSubjects(prev => prev.map(s =>
       s.id === selectedSubject.id ? { ...s, chapitres: s.chapitres.filter(c => c.id !== chapterId) } : s

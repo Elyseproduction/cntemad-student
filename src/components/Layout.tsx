@@ -45,7 +45,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
     presenceChannel
       .on('presence', { event: 'sync' }, () => {
-        setOnlineCount(Object.keys(presenceChannel.presenceState()).length);
+        const state = presenceChannel.presenceState();
+        const keys = Object.keys(state);
+        setOnlineCount(keys.length);
+        const users: OnlineUser[] = [];
+        const seen = new Set<string>();
+        for (const key of keys) {
+          const presences = state[key] as any[];
+          for (const p of presences) {
+            if (p.username && !seen.has(p.username)) {
+              seen.add(p.username);
+              users.push({ username: p.username, color: p.color || '#6C63FF' });
+            }
+          }
+        }
+        setOnlineUsers(users);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {

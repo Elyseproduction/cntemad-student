@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
-const CHECK_INTERVAL = 30_000; // Check every 30 seconds
+const CHECK_INTERVAL = 1_000; // Check every 1 second
 
 export function useAutoUpdate() {
   const { toast } = useToast();

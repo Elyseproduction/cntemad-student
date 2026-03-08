@@ -406,7 +406,7 @@ export function CoursesPage() {
         </div>
 
         {/* Sections */}
-        <div className="glass-card p-3 md:p-6 mb-4 md:mb-6 overflow-hidden">
+        <div className="glass-card p-3 md:p-6 mb-4 md:mb-6 overflow-hidden w-full max-w-full">
           {selectedChapter.sections.map((section, i) => (
             <SectionRenderer key={i} section={section} />
           ))}

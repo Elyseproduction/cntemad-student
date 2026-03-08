@@ -375,38 +375,38 @@ export function CoursesPage() {
         </div>
 
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap">
+        <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground mb-4 md:mb-6 flex-wrap">
           <button onClick={() => { setSelectedSubject(null); setSelectedChapter(null); }} className="hover:text-foreground transition-colors">Accueil</button>
-          <ChevronRight size={14} />
-          <button onClick={() => setSelectedChapter(null)} className="hover:text-foreground transition-colors">{selectedSubject.nom}</button>
-          <ChevronRight size={14} />
-          <span className="text-foreground">{selectedChapter.titre}</span>
+          <ChevronRight size={12} className="md:w-3.5 md:h-3.5" />
+          <button onClick={() => setSelectedChapter(null)} className="hover:text-foreground transition-colors truncate max-w-[120px] md:max-w-none">{selectedSubject.nom}</button>
+          <ChevronRight size={12} className="md:w-3.5 md:h-3.5" />
+          <span className="text-foreground truncate max-w-[150px] md:max-w-none">{selectedChapter.titre}</span>
         </div>
 
         {/* Header */}
-        <div className="glass-card p-6 mb-6">
-          <div className="flex items-start justify-between flex-wrap gap-4">
+        <div className="glass-card p-4 md:p-6 mb-4 md:mb-6">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
             <div>
               <h1 className="section-h1 mb-2">{selectedChapter.titre}</h1>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 md:gap-3 flex-wrap">
                 {difficultyBadge(selectedChapter.difficulte)}
                 {selectedChapter.learned && <span className="text-xs px-2 py-0.5 rounded-full bg-success/20 text-success">✅ Appris</span>}
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <button onClick={handleMarkLearned} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedChapter.learned ? 'bg-success/20 text-success' : 'bg-secondary text-foreground hover:bg-muted'}`}>
-                <CheckCircle size={16} className="inline mr-1" /> {selectedChapter.learned ? 'Appris ✅' : 'Marquer comme appris'}
+              <button onClick={handleMarkLearned} className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all flex-1 md:flex-none ${selectedChapter.learned ? 'bg-success/20 text-success' : 'bg-secondary text-foreground hover:bg-muted'}`}>
+                <CheckCircle size={14} className="inline mr-1" /> {selectedChapter.learned ? 'Appris ✅' : 'Appris'}
               </button>
-              <button onClick={() => setActiveTab('exercices')} className="px-4 py-2 rounded-lg gradient-bg text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
-                🧠 Générer des exercices
+              <button onClick={() => setActiveTab('exercices')} className="px-3 md:px-4 py-2 rounded-lg gradient-bg text-primary-foreground text-xs md:text-sm font-medium hover:opacity-90 transition-opacity flex-1 md:flex-none">
+                🧠 Exercices
               </button>
             </div>
           </div>
-          {selectedChapter.resume_intro && <p className="mt-4 text-muted-foreground leading-relaxed">{selectedChapter.resume_intro}</p>}
+          {selectedChapter.resume_intro && <p className="mt-3 md:mt-4 text-sm md:text-base text-muted-foreground leading-relaxed">{selectedChapter.resume_intro}</p>}
         </div>
 
         {/* Sections */}
-        <div className="glass-card p-6 mb-6">
+        <div className="glass-card p-3 md:p-6 mb-4 md:mb-6 overflow-hidden">
           {selectedChapter.sections.map((section, i) => (
             <SectionRenderer key={i} section={section} />
           ))}

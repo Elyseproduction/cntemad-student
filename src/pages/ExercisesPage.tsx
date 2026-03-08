@@ -384,7 +384,15 @@ export function ExercisesPage() {
 
         <button onClick={handleGenerate} disabled={!selectedSubject || !selectedChapter || loading} className="w-full py-4 rounded-xl gradient-bg text-primary-foreground font-semibold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
           {loading ? (
-            <><span className="animate-spin">🤖</span> L'IA analyse le chapitre et prépare vos exercices...</>
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full" />
+                <span>{loadingStep}</span>
+              </div>
+              <div className="w-48 h-1.5 rounded-full bg-primary-foreground/20 overflow-hidden">
+                <div className="h-full bg-primary-foreground/60 rounded-full animate-pulse" style={{ width: '60%' }} />
+              </div>
+            </div>
           ) : (
             <><Sparkles size={20} /> Générer les exercices</>
           )}

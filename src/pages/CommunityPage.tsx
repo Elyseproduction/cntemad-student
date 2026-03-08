@@ -323,9 +323,13 @@ export function CommunityPage() {
                 {/* Author info */}
                 <div className="flex items-center gap-2 mb-1">
                   {!isMe && (
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0" style={{ backgroundColor: msg.couleur }}>
-                      {msg.avatar}
-                    </div>
+                    msg.avatar?.startsWith('http') ? (
+                      <img src={msg.avatar} alt={msg.auteur} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0" style={{ backgroundColor: msg.couleur }}>
+                        {msg.avatar}
+                      </div>
+                    )
                   )}
                   <span className="text-xs text-muted-foreground">
                     {!isMe && <span className="font-medium text-foreground mr-1">{msg.auteur}</span>}

@@ -41,8 +41,12 @@ export function CommunityPage() {
   const [editingMsg, setEditingMsg] = useState<string | null>(null);
   const [editInput, setEditInput] = useState('');
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState('');
+  const [mentionIndex, setMentionIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
   const userAvatar = profile?.avatar_url || '';

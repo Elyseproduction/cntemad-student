@@ -1,52 +1,112 @@
-import { useState, useRef, useEffect } from 'react';
-import { useApp } from '@/contexts/AppContext';
-import { Send, Smile, Image, Users } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Send, Smile, Users } from 'lucide-react';
+
+interface Message {
+  id: string;
+  auteur: string;
+  avatar: string;
+  couleur: string;
+  contenu: string;
+  type: string;
+  image_url?: string;
+  created_at: string;
+  reactions: Record<string, number>;
+}
 
 const reactionEmojis = ['👍', '❤️', '😂', '🔥'];
 const emojiPicker = ['😀', '😂', '😍', '🤔', '👍', '👏', '🎉', '🔥', '❤️', '💪', '📚', '🧠', '💡', '⚡', '🎯', '✅'];
 
 export function CommunityPage() {
-  const { messages, setMessages } = useApp();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [username] = useState(() => {
+    const stored = localStorage.getItem('community_username');
+    if (stored) return stored;
     const names = ['Étudiant', 'User', 'Anonyme'];
-    return names[Math.floor(Math.random() * names.length)] + Math.floor(Math.random() * 100);
+    const name = names[Math.floor(Math.random() * names.length)] + Math.floor(Math.random() * 100);
+    localStorage.setItem('community_username', name);
+    return name;
   });
   const [userColor] = useState(() => {
+    const stored = localStorage.getItem('community_color');
+    if (stored) return stored;
     const colors = ['#6C63FF', '#00BCD4', '#FF6B6B', '#FFB74D', '#AB47BC', '#4CAF50'];
-    return colors[Math.floor(Math.random() * colors.length)];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    localStorage.setItem('community_color', color);
+    return color;
   });
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const fetchMessages = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('community_messages')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (!error && data) {
+      setMessages(data.map(m => ({
+        ...m,
+        reactions: (m.reactions as Record<string, number>) || {},
+      })));
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchMessages();
+
+    // Realtime subscription
+    const channel = supabase
+      .channel('community_messages_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, () => {
+        fetchMessages();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchMessages]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input.trim()) return;
-    setMessages(prev => [...prev, {
-      id: Date.now().toString(),
+    const text = input;
+    setInput('');
+    setShowEmoji(false);
+
+    await supabase.from('community_messages').insert({
       auteur: username,
       avatar: username[0].toUpperCase(),
       couleur: userColor,
-      contenu: input,
+      contenu: text,
       type: 'text',
-      heure: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
       reactions: {},
-    }]);
-    setInput('');
-    setShowEmoji(false);
+    });
   };
 
-  const addReaction = (msgId: string, emoji: string) => {
-    setMessages(prev => prev.map(m => {
-      if (m.id !== msgId) return m;
-      const reactions = { ...m.reactions };
-      reactions[emoji] = (reactions[emoji] || 0) + 1;
-      return { ...m, reactions };
-    }));
+  const addReaction = async (msgId: string, emoji: string) => {
+    const msg = messages.find(m => m.id === msgId);
+    if (!msg) return;
+    const reactions = { ...msg.reactions };
+    reactions[emoji] = (reactions[emoji] || 0) + 1;
+    await supabase.from('community_messages').update({ reactions }).eq('id', msgId);
   };
+
+  const formatTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)] flex flex-col animate-fade-in">
@@ -71,7 +131,7 @@ export function CommunityPage() {
                       {msg.avatar}
                     </div>
                   )}
-                  <span className="text-xs text-muted-foreground">{!isMe && <span className="font-medium text-foreground mr-1">{msg.auteur}</span>}{msg.heure}</span>
+                  <span className="text-xs text-muted-foreground">{!isMe && <span className="font-medium text-foreground mr-1">{msg.auteur}</span>}{formatTime(msg.created_at)}</span>
                 </div>
                 <div className={`p-3 rounded-2xl ${isMe ? 'bg-primary text-primary-foreground rounded-br-md' : 'bg-secondary rounded-bl-md'}`}>
                   <p className="text-sm leading-relaxed">{msg.contenu}</p>

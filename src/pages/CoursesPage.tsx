@@ -35,69 +35,71 @@ function SectionRenderer({ section }: { section: Chapter['sections'][0] }) {
   switch (section.type) {
     case 'h1':
       return (
-        <div className="mt-8 mb-4">
+        <div className="mt-6 md:mt-8 mb-3 md:mb-4">
           <h2 className="section-h1 pb-2 border-b border-primary/30">{section.titre}</h2>
-          <p className="mt-3 leading-relaxed whitespace-pre-wrap">{renderContent(section.contenu, section.mots_cles)}</p>
+          <p className="mt-2 md:mt-3 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'h2':
       return (
-        <div className="mt-6 mb-3">
+        <div className="mt-4 md:mt-6 mb-2 md:mb-3">
           <h3 className="section-h2">{section.titre}</h3>
-          <p className="mt-2 leading-relaxed whitespace-pre-wrap">{renderContent(section.contenu, section.mots_cles)}</p>
+          <p className="mt-1.5 md:mt-2 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'h3':
       return (
-        <div className="mt-4 mb-2">
+        <div className="mt-3 md:mt-4 mb-1.5 md:mb-2">
           <h4 className="section-h3">{section.titre}</h4>
-          <p className="mt-1 leading-relaxed whitespace-pre-wrap">{renderContent(section.contenu, section.mots_cles)}</p>
+          <p className="mt-1 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'definition':
       return (
-        <div className="my-4 p-4 rounded-xl border-l-4 border-accent bg-accent/10">
-          <p className="font-semibold text-accent mb-1">📌 {section.titre}</p>
-          <p className="leading-relaxed">{renderContent(section.contenu, section.mots_cles)}</p>
+        <div className="my-3 md:my-4 p-3 md:p-4 rounded-xl border-l-4 border-accent bg-accent/10">
+          <p className="font-semibold text-accent mb-1 text-sm md:text-base">📌 {section.titre}</p>
+          <p className="text-sm md:text-base leading-relaxed break-words">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'retenir':
       return (
-        <div className="my-4 p-4 rounded-xl bg-primary/10 border border-primary/20">
-          <p className="font-semibold text-primary mb-1">💡 {section.titre}</p>
-          <p className="leading-relaxed">{renderContent(section.contenu, section.mots_cles)}</p>
+        <div className="my-3 md:my-4 p-3 md:p-4 rounded-xl bg-primary/10 border border-primary/20">
+          <p className="font-semibold text-primary mb-1 text-sm md:text-base">💡 {section.titre}</p>
+          <p className="text-sm md:text-base leading-relaxed break-words">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'attention':
       return (
-        <div className="my-4 p-4 rounded-xl bg-warning/10 border border-warning/20">
-          <p className="font-semibold text-warning mb-1">⚠️ {section.titre}</p>
-          <p className="leading-relaxed">{renderContent(section.contenu, section.mots_cles)}</p>
+        <div className="my-3 md:my-4 p-3 md:p-4 rounded-xl bg-warning/10 border border-warning/20">
+          <p className="font-semibold text-warning mb-1 text-sm md:text-base">⚠️ {section.titre}</p>
+          <p className="text-sm md:text-base leading-relaxed break-words">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'code':
       return (
-        <div className="my-4">
-          <p className="text-sm text-muted-foreground mb-1">{section.titre}</p>
-          <pre className="p-4 rounded-xl bg-muted/50 border border-border overflow-x-auto font-mono text-sm leading-relaxed">
-            <code>{section.contenu}</code>
-          </pre>
+        <div className="my-3 md:my-4">
+          <p className="text-xs md:text-sm text-muted-foreground mb-1">{section.titre}</p>
+          <div className="rounded-xl bg-muted/50 border border-border overflow-x-auto -mx-1 md:mx-0">
+            <pre className="p-3 md:p-4 font-mono text-xs md:text-sm leading-relaxed min-w-0">
+              <code className="break-all md:break-normal">{section.contenu}</code>
+            </pre>
+          </div>
         </div>
       );
     case 'tableau':
       return (
-        <div className="my-4">
-          <p className="font-semibold mb-2">{section.titre}</p>
-          <div className="p-4 rounded-xl bg-muted/30 border border-border overflow-x-auto">
-            <pre className="font-mono text-sm">{section.contenu}</pre>
+        <div className="my-3 md:my-4">
+          <p className="font-semibold mb-2 text-sm md:text-base">{section.titre}</p>
+          <div className="rounded-xl bg-muted/30 border border-border overflow-x-auto -mx-1 md:mx-0">
+            <pre className="p-3 md:p-4 font-mono text-xs md:text-sm min-w-0">{section.contenu}</pre>
           </div>
         </div>
       );
     case 'schema':
       return (
-        <div className="my-4 p-4 rounded-xl bg-muted/30 border border-dashed border-primary/30">
-          <p className="font-semibold text-primary mb-2">🔷 {section.titre}</p>
-          <pre className="font-mono text-sm leading-relaxed">{section.contenu}</pre>
+        <div className="my-3 md:my-4 p-3 md:p-4 rounded-xl bg-muted/30 border border-dashed border-primary/30 overflow-x-auto">
+          <p className="font-semibold text-primary mb-2 text-sm md:text-base">🔷 {section.titre}</p>
+          <pre className="font-mono text-xs md:text-sm leading-relaxed min-w-0">{section.contenu}</pre>
         </div>
       );
     default:

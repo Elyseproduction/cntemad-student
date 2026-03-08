@@ -18,8 +18,8 @@ export function VideoPage() {
   const [newMatiere, setNewMatiere] = useState('');
 
   const filteredVideos = useMemo(() => {
-    if (!filter) return videos;
-    return videos.filter(v => v.matiere === filter);
+    const filtered = filter ? videos.filter(v => v.matiere === filter) : videos;
+    return [...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [videos, filter]);
 
   const handleAdd = () => {

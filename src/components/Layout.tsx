@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BookOpen, Brain, MessageCircle, Video, Settings, LogOut, Moon, Sun, Lock, Menu, X } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { AdminModal } from '@/components/AdminModal';
+import { supabase } from '@/integrations/supabase/client';
 
 const tabs = [
   { id: 'cours', label: 'Cours', icon: BookOpen, emoji: '📚' },
@@ -15,6 +16,76 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [showAdmin, setShowAdmin] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [lastSeenCount, setLastSeenCount] = useState(0);
+
+  const fetchMessageCount = useCallback(async () => {
+    const { count } = await supabase
+      .from('community_messages')
+      .select('*', { count: 'exact', head: true });
+    return count || 0;
+  }, []);
+
+  // When user enters community tab, mark all as read
+  useEffect(() => {
+    if (activeTab === 'communaute') {
+      fetchMessageCount().then(count => {
+        setLastSeenCount(count);
+        setUnreadCount(0);
+      });
+    }
+  }, [activeTab, fetchMessageCount]);
+
+  // Listen for new messages in real-time
+  useEffect(() => {
+    // Initialize
+    fetchMessageCount().then(count => {
+      if (activeTab === 'communaute') {
+        setLastSeenCount(count);
+        setUnreadCount(0);
+      } else {
+        const stored = localStorage.getItem('community_last_seen_count');
+        const seen = stored ? parseInt(stored, 10) : count;
+        setLastSeenCount(seen);
+        setUnreadCount(Math.max(0, count - seen));
+      }
+    });
+
+    const channel = supabase
+      .channel('layout_community_badge')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'community_messages' }, () => {
+        fetchMessageCount().then(count => {
+          setUnreadCount(prev => {
+            // If on community tab, auto-mark as read
+            if (activeTab === 'communaute') {
+              setLastSeenCount(count);
+              localStorage.setItem('community_last_seen_count', count.toString());
+              return 0;
+            }
+            return Math.max(0, count - lastSeenCount);
+          });
+        });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchMessageCount, activeTab, lastSeenCount]);
+
+  // Persist last seen count
+  useEffect(() => {
+    if (activeTab === 'communaute') {
+      localStorage.setItem('community_last_seen_count', lastSeenCount.toString());
+    }
+  }, [activeTab, lastSeenCount]);
+
+  const renderBadge = (tabId: string) => {
+    if (tabId !== 'communaute' || unreadCount <= 0) return null;
+    return (
+      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+        {unreadCount > 99 ? '99+' : `+${unreadCount}`}
+      </span>
+    );
+  };
 
   return (
     <div className="min-h-screen gradient-mesh">
@@ -32,9 +103,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={activeTab === tab.id ? 'nav-item-active w-full' : 'nav-item w-full'}
+              className={`relative ${activeTab === tab.id ? 'nav-item-active w-full' : 'nav-item w-full'}`}
             >
-              <tab.icon size={20} className="shrink-0" />
+              <div className="relative shrink-0">
+                <tab.icon size={20} />
+                {renderBadge(tab.id)}
+              </div>
               {sidebarOpen && <span>{tab.label}</span>}
             </button>
           ))}
@@ -95,9 +169,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 flex flex-col items-center py-2 transition-colors ${activeTab === tab.id ? 'text-primary' : 'text-muted-foreground'}`}
+            className={`flex-1 flex flex-col items-center py-2 transition-colors relative ${activeTab === tab.id ? 'text-primary' : 'text-muted-foreground'}`}
           >
-            <tab.icon size={20} />
+            <div className="relative">
+              <tab.icon size={20} />
+              {renderBadge(tab.id)}
+            </div>
             <span className="text-[10px] mt-1">{tab.label}</span>
           </button>
         ))}
@@ -114,8 +191,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <nav className="flex-1 space-y-1">
               {tabs.map(tab => (
-                <button key={tab.id} onClick={() => { setActiveTab(tab.id); setMobileMenuOpen(false); }} className={activeTab === tab.id ? 'nav-item-active w-full' : 'nav-item w-full'}>
-                  <tab.icon size={20} /> <span>{tab.label}</span>
+                <button key={tab.id} onClick={() => { setActiveTab(tab.id); setMobileMenuOpen(false); }} className={`relative ${activeTab === tab.id ? 'nav-item-active w-full' : 'nav-item w-full'}`}>
+                  <div className="relative">
+                    <tab.icon size={20} />
+                    {renderBadge(tab.id)}
+                  </div>
+                  <span>{tab.label}</span>
                 </button>
               ))}
             </nav>

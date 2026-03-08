@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, createContext, useContext } from 'rea
 import { BookOpen, Brain, MessageCircle, Video, Settings, LogOut, Moon, Sun, Lock, Menu, X } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { AdminModal } from '@/components/AdminModal';
+import { ProfileMenu } from '@/components/ProfileMenu';
 import { supabase } from '@/integrations/supabase/client';
 
 const tabs = [
@@ -197,15 +198,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-3">
             {isAdmin && (
-              <>
-                <span className="text-xs px-3 py-1.5 rounded-full bg-primary/20 text-primary font-medium flex items-center gap-1.5">
-                  <Lock size={12} /> Mode Admin
-                </span>
-                <button onClick={logout} className="text-xs px-3 py-1.5 rounded-full bg-destructive/20 text-destructive hover:bg-destructive/30 transition-colors flex items-center gap-1.5">
-                  <LogOut size={12} /> Déconnexion
-                </button>
-              </>
+              <span className="text-xs px-3 py-1.5 rounded-full bg-primary/20 text-primary font-medium flex items-center gap-1.5">
+                <Lock size={12} /> Admin
+              </span>
             )}
+            <ProfileMenu />
           </div>
         </header>
 

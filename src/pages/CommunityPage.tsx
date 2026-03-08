@@ -175,8 +175,20 @@ export function CommunityPage() {
   const addReaction = async (msgId: string, emoji: string) => {
     const msg = messages.find(m => m.id === msgId);
     if (!msg) return;
-    const reactions = { ...msg.reactions };
-    reactions[emoji] = (reactions[emoji] || 0) + 1;
+    const reactions: Record<string, string[]> = {};
+    // Deep copy
+    for (const [key, val] of Object.entries(msg.reactions)) {
+      reactions[key] = Array.isArray(val) ? [...val] : [];
+    }
+    const users = reactions[emoji] || [];
+    if (users.includes(username)) {
+      // Remove reaction (toggle off)
+      reactions[emoji] = users.filter(u => u !== username);
+      if (reactions[emoji].length === 0) delete reactions[emoji];
+    } else {
+      // Add reaction (toggle on)
+      reactions[emoji] = [...users, username];
+    }
     await supabase.from('community_messages').update({ reactions }).eq('id', msgId);
   };
 

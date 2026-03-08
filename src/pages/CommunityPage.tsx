@@ -504,7 +504,7 @@ export function CommunityPage() {
       )}
 
       {/* Input */}
-      <div className="flex items-center gap-2 py-2 border-t border-border shrink-0 bg-background">
+      <div className="flex items-center gap-2 py-2 border-t border-border shrink-0 bg-background sticky bottom-0 z-10">
         <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
         <div className="flex items-center shrink-0">
           <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">

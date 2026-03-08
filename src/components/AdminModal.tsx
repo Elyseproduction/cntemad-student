@@ -77,6 +77,25 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
     }
   };
 
+  const toggleDeveloper = async (profile: ProfileItem) => {
+    setTogglingId(profile.id);
+    const newValue = !profile.is_developer;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_developer: newValue } as any)
+      .eq('id', profile.id);
+    setTogglingId(null);
+    if (error) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } else {
+      setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, is_developer: newValue } : p));
+      toast({
+        title: newValue ? '💻 Développeur' : 'Statut retiré',
+        description: `${profile.display_name || 'Utilisateur'} ${newValue ? 'est maintenant développeur' : "n'est plus développeur"}.`,
+      });
+    }
+  };
+
   const clearAllMessages = async () => {
     setClearing(true);
     const { error } = await supabase.from('community_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');

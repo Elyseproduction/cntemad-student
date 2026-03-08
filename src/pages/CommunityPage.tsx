@@ -23,12 +23,12 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 export function CommunityPage() {
   const { toast } = useToast();
+  const onlineCount = useOnlineCount();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [onlineCount, setOnlineCount] = useState(0);
   const [previewFile, setPreviewFile] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [username] = useState(() => {

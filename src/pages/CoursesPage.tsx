@@ -329,7 +329,13 @@ export function CoursesPage() {
     setShowCreateChapter(false);
   };
 
-  const handleDeleteChapter = (chapterId: string) => {
+  const handleImportChapter = (chapter: Chapter) => {
+    if (!selectedSubject) return;
+    setSubjects(prev => prev.map(s =>
+      s.id === selectedSubject.id ? { ...s, chapitres: [...s.chapitres, chapter] } : s
+    ));
+  };
+
     if (!selectedSubject) return;
     setSubjects(prev => prev.map(s =>
       s.id === selectedSubject.id ? { ...s, chapitres: s.chapitres.filter(c => c.id !== chapterId) } : s

@@ -29,6 +29,7 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024;
 export function CommunityPage() {
   const { toast } = useToast();
   const onlineCount = useOnlineCount();
+  const { user, profile, loading: authLoading, signOut } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
@@ -41,22 +42,10 @@ export function CommunityPage() {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-  const [username] = useState(() => {
-    const stored = localStorage.getItem('community_username');
-    if (stored) return stored;
-    const names = ['Étudiant', 'User', 'Anonyme'];
-    const name = names[Math.floor(Math.random() * names.length)] + Math.floor(Math.random() * 100);
-    localStorage.setItem('community_username', name);
-    return name;
-  });
-  const [userColor] = useState(() => {
-    const stored = localStorage.getItem('community_color');
-    if (stored) return stored;
-    const colors = ['#6C63FF', '#00BCD4', '#FF6B6B', '#FFB74D', '#AB47BC', '#4CAF50'];
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    localStorage.setItem('community_color', color);
-    return color;
-  });
+
+  const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
+  const userAvatar = profile?.avatar_url || '';
+  const userColor = '#6C63FF';
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchMessages = useCallback(async () => {

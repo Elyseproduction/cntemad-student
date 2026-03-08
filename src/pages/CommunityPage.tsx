@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck } from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';

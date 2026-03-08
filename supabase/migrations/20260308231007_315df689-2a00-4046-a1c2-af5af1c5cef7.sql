@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN is_admin_badge boolean NOT NULL DEFAULT false;

@@ -150,22 +150,33 @@ export function CommunityPage() {
     });
   };
 
+  const getFileType = (file: File): 'image' | 'video' | 'file' => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type.startsWith('video/')) return 'video';
+    return 'file';
+  };
+
+  const getFileLabel = (file: File): string => {
+    const ext = file.name.split('.').pop()?.toUpperCase() || 'FICHIER';
+    if (file.type.startsWith('image/')) return '📷 Photo';
+    if (file.type.startsWith('video/')) return '🎥 Vidéo';
+    return `📎 ${file.name}`;
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_FILE_SIZE) { toast({ title: 'Fichier trop volumineux', description: 'Max 100 Mo.', variant: 'destructive' }); return; }
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    if (!isImage && !isVideo) { toast({ title: 'Type non supporté', description: 'Photos et vidéos uniquement.', variant: 'destructive' }); return; }
     setUploading(true);
     const ext = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const { error: uploadError } = await supabase.storage.from('community-media').upload(fileName, file);
     if (uploadError) { toast({ title: 'Erreur upload', description: uploadError.message, variant: 'destructive' }); setUploading(false); return; }
     const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
+    const fileType = getFileType(file);
     await supabase.from('community_messages').insert({
       auteur: username, avatar: username[0].toUpperCase(), couleur: userColor,
-      contenu: isImage ? '📷 Photo' : '🎥 Vidéo', type: isImage ? 'image' : 'video',
+      contenu: getFileLabel(file), type: fileType,
       image_url: urlData.publicUrl, reactions: {},
     });
     setUploading(false);

@@ -87,24 +87,16 @@ export function CommunityPage() {
       })
       .subscribe();
 
-    const presenceChannel = supabase.channel('community_presence', {
-      config: { presence: { key: username } },
-    });
-    presenceChannel
-      .on('presence', { event: 'sync' }, () => {
-        setOnlineCount(Object.keys(presenceChannel.presenceState()).length);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({ username, color: userColor });
-        }
-      });
+    // Poll messages every second for instant sync
+    const pollInterval = setInterval(() => {
+      fetchMessages();
+    }, 1000);
 
     return () => {
       supabase.removeChannel(msgChannel);
-      supabase.removeChannel(presenceChannel);
+      clearInterval(pollInterval);
     };
-  }, [fetchMessages, username, userColor]);
+  }, [fetchMessages]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });

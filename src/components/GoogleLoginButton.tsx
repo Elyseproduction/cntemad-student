@@ -19,9 +19,10 @@ export function GoogleLoginButton() {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-6 p-8 animate-fade-in">
       <div className="text-center space-y-2">
-        <h2 className="font-heading font-bold text-2xl">💬 Communauté</h2>
+        <div className="w-16 h-16 rounded-xl gradient-bg flex items-center justify-center text-primary-foreground font-heading font-bold text-2xl mx-auto mb-2">U</div>
+        <h2 className="font-heading font-bold text-2xl">Bienvenue sur UniLearn</h2>
         <p className="text-muted-foreground text-sm max-w-sm">
-          Connecte-toi avec Google pour rejoindre le chat avec ton nom et ta photo de profil.
+          Connecte-toi avec ton compte Google pour accéder aux cours, exercices, communauté et vidéos.
         </p>
       </div>
       <button

@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useApp, ExerciseHistory } from '@/contexts/AppContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Brain, RotateCcw, BookOpen, Sparkles, ChevronRight, Trophy, Star, BookMarked, Flame } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 type ExerciseType = 'qcm' | 'vrai_faux' | 'texte_trou' | 'question_ouverte';
 
@@ -21,64 +23,17 @@ const typeLabels: Record<ExerciseType, { label: string; color: string }> = {
   question_ouverte: { label: '🔴 Question ouverte', color: 'text-destructive' },
 };
 
-// Generate mock exercises for demo
-function generateMockExercises(type: ExerciseType, count: number, chapterTitle: string): Exercise[] {
-  const exercises: Exercise[] = [];
-  const templates: Record<ExerciseType, () => Exercise> = {
-    qcm: () => ({
-      id: 0, type: 'qcm',
-      enonce: `Quelle est la caractéristique principale étudiée dans "${chapterTitle}" ?`,
-      options: ['La performance', 'La structure', 'La sécurité', 'La rapidité'],
-      reponseCorrecte: 'La structure',
-      explicationCorrecte: "La structure est en effet un concept fondamental de ce chapitre.",
-      explicationFausse: "Revoyez la section d'introduction du chapitre pour mieux comprendre.",
-    }),
-    vrai_faux: () => ({
-      id: 0, type: 'vrai_faux',
-      enonce: `Les concepts présentés dans "${chapterTitle}" sont utilisés uniquement en théorie.`,
-      options: ['Vrai', 'Faux'],
-      reponseCorrecte: 'Faux',
-      explicationCorrecte: "Ces concepts ont des applications pratiques importantes.",
-      explicationFausse: "Ces concepts sont largement utilisés en pratique.",
-    }),
-    texte_trou: () => ({
-      id: 0, type: 'texte_trou',
-      enonce: `Dans le chapitre "${chapterTitle}", le concept principal est la _____.`,
-      reponseCorrecte: 'structure',
-      explicationCorrecte: "Bonne réponse ! C'est bien le concept central.",
-      explicationFausse: "La bonne réponse était 'structure'. Relisez le chapitre.",
-    }),
-    question_ouverte: () => ({
-      id: 0, type: 'question_ouverte',
-      enonce: `Expliquez brièvement le concept principal du chapitre "${chapterTitle}".`,
-      reponseCorrecte: '',
-      explicationCorrecte: "Votre réponse sera évaluée selon la compréhension des concepts clés.",
-      explicationFausse: '',
-    }),
-  };
-
-  for (let i = 0; i < count; i++) {
-    const ex = templates[type]();
-    ex.id = i + 1;
-    ex.enonce = i === 0 ? ex.enonce : `Question ${i + 1} sur "${chapterTitle}" : ${ex.enonce}`;
-    exercises.push(ex);
-  }
-  return exercises;
-}
-
 export function ExercisesPage() {
   const { subjects, exerciseHistory, addExerciseHistory } = useApp();
+  const { toast } = useToast();
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
-  const [exerciseType, setExerciseType] = useState<ExerciseType>('qcm');
-  const [nbQuestions, setNbQuestions] = useState(5);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answer, setAnswer] = useState('');
   const [answered, setAnswered] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [score, setScore] = useState(0);
-  const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(false);
   const [wrongAnswers, setWrongAnswers] = useState<{ exercise: Exercise; userAnswer: string }[]>([]);
   const [phase, setPhase] = useState<'setup' | 'quiz' | 'results'>('setup');
@@ -95,20 +50,59 @@ export function ExercisesPage() {
 
   const handleGenerate = async () => {
     const chapter = chapters.find(c => c.id === selectedChapter);
-    if (!chapter) return;
+    const subject = subjects.find(s => s.id === selectedSubject);
+    if (!chapter || !subject) return;
 
     setLoading(true);
-    // Simulate AI generation delay
-    await new Promise(r => setTimeout(r, 1500));
-    const generated = generateMockExercises(exerciseType, nbQuestions, chapter.titre);
-    setExercises(generated);
-    setCurrentIdx(0);
-    setScore(0);
-    setAnswer('');
-    setAnswered(false);
-    setWrongAnswers([]);
-    setLoading(false);
-    setPhase('quiz');
+
+    // Build chapter content from sections
+    const chapterContent = chapter.sections
+      .map(s => `[${s.type}] ${s.titre}: ${s.contenu}`)
+      .join('\n\n');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-exercises', {
+        body: {
+          chapterTitle: chapter.titre,
+          subjectName: subject.nom,
+          chapterContent,
+          pointsCles: chapter.points_cles,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        toast({ title: 'Erreur', description: data.error, variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+
+      const generated: Exercise[] = (data?.exercices || []).map((ex: any, i: number) => ({
+        ...ex,
+        id: i + 1,
+        type: ex.type as ExerciseType,
+      }));
+
+      if (generated.length === 0) {
+        toast({ title: 'Erreur', description: "L'IA n'a pas pu générer d'exercices. Réessayez.", variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+
+      setExercises(generated);
+      setCurrentIdx(0);
+      setScore(0);
+      setAnswer('');
+      setAnswered(false);
+      setWrongAnswers([]);
+      setPhase('quiz');
+    } catch (e: any) {
+      console.error('Exercise generation error:', e);
+      toast({ title: 'Erreur', description: e.message || "Impossible de générer les exercices", variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAnswer = (ans: string) => {
@@ -132,9 +126,9 @@ export function ExercisesPage() {
       addExerciseHistory({
         date: new Date().toLocaleDateString('fr-FR'),
         chapitre: ch?.titre || '',
-        score: score + (isCorrect ? 0 : 0), // already counted
+        score,
         total: exercises.length,
-        type: typeLabels[exerciseType].label,
+        type: 'Mixte IA',
       });
       setPhase('results');
     }
@@ -169,6 +163,13 @@ export function ExercisesPage() {
           <div className="text-6xl font-heading font-bold gradient-text mb-2">{score} / {exercises.length}</div>
           <p className="text-lg text-muted-foreground mb-2">{pct}% de bonnes réponses</p>
           <p className={`font-semibold text-lg ${evaluation.color}`}>{evaluation.text}</p>
+
+          {pct === 100 && (
+            <div className="mt-4 p-4 rounded-xl bg-success/10 border border-success/20 animate-fade-in">
+              <p className="text-success font-semibold text-lg">✅ Tu as tout compris sur ce chapitre !</p>
+              <p className="text-sm text-muted-foreground mt-1">L'IA a vérifié chaque concept clé et tu les maîtrises tous.</p>
+            </div>
+          )}
 
           {/* Circle chart */}
           <div className="flex justify-center my-6">
@@ -220,7 +221,9 @@ export function ExercisesPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
             <span>Question {currentIdx + 1} / {exercises.length}</span>
-            <span>{Math.round(progress)}%</span>
+            <span className="px-2 py-0.5 rounded-full bg-muted text-xs">
+              {typeLabels[exercise.type]?.label || exercise.type}
+            </span>
           </div>
           <div className="h-2 rounded-full bg-muted overflow-hidden">
             <div className="h-full gradient-bg transition-all duration-500 rounded-full" style={{ width: `${progress}%` }} />
@@ -338,7 +341,7 @@ export function ExercisesPage() {
     <div className="max-w-2xl mx-auto animate-fade-in">
       <div className="text-center mb-8">
         <h1 className="font-heading font-bold text-2xl md:text-3xl mb-2">🧠 Exercices IA</h1>
-        <p className="text-muted-foreground">Testez vos connaissances avec des exercices générés par l'IA</p>
+        <p className="text-muted-foreground">L'IA génère automatiquement les questions nécessaires pour couvrir tout le chapitre</p>
       </div>
 
       <div className="glass-card p-6 space-y-6">
@@ -360,35 +363,21 @@ export function ExercisesPage() {
           </select>
         </div>
 
-        {/* Type */}
-        <div>
-          <label className="text-sm font-medium text-muted-foreground mb-2 block">Type d'exercice</label>
-          <div className="grid grid-cols-2 gap-3">
-            {(Object.entries(typeLabels) as [ExerciseType, { label: string }][]).map(([key, val]) => (
-              <button key={key} onClick={() => setExerciseType(key)} className={`p-3 rounded-xl text-sm font-medium transition-all border ${exerciseType === key ? 'bg-primary/15 border-primary text-primary' : 'bg-secondary border-border hover:border-primary/50'}`}>
-                {val.label}
-              </button>
-            ))}
+        {/* Info box */}
+        {selectedChapter && (
+          <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 animate-fade-in">
+            <p className="text-sm text-primary font-medium flex items-center gap-2">
+              <Brain size={16} />
+              L'IA va analyser le chapitre et générer le nombre exact de questions (mélange QCM, Vrai/Faux, texte à trou et questions ouvertes) pour couvrir tous les concepts.
+            </p>
           </div>
-        </div>
-
-        {/* Count */}
-        <div>
-          <label className="text-sm font-medium text-muted-foreground mb-2 block">Nombre de questions</label>
-          <div className="flex gap-3">
-            {[3, 5, 10].map(n => (
-              <button key={n} onClick={() => setNbQuestions(n)} className={`flex-1 p-3 rounded-xl font-medium transition-all border ${nbQuestions === n ? 'bg-primary/15 border-primary text-primary' : 'bg-secondary border-border hover:border-primary/50'}`}>
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
 
         <button onClick={handleGenerate} disabled={!selectedSubject || !selectedChapter || loading} className="w-full py-4 rounded-xl gradient-bg text-primary-foreground font-semibold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
           {loading ? (
-            <><span className="animate-spin">🤖</span> L'IA prépare vos exercices...</>
+            <><span className="animate-spin">🤖</span> L'IA analyse le chapitre et prépare vos exercices...</>
           ) : (
-            <><Sparkles size={20} /> Générer avec l'IA</>
+            <><Sparkles size={20} /> Générer les exercices</>
           )}
         </button>
       </div>

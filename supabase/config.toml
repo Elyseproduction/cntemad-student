@@ -1,1 +1,4 @@
 project_id = "vmrirmolivuqamybmsec"
+
+[functions.generate-exercises]
+verify_jwt = false

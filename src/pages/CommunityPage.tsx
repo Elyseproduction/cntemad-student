@@ -145,7 +145,7 @@ export function CommunityPage() {
   const filteredMentionUsers = allProfiles
     .filter(u => u.display_name !== username)
     .filter(u => !mentionFilter || u.display_name.toLowerCase().includes(mentionFilter.toLowerCase()))
-    .map(u => ({ username: u.display_name, avatar_url: u.avatar_url, isOnline: onlineNames.has(u.display_name) }));
+    .map(u => ({ username: u.display_name, avatar_url: u.avatar_url, isOnline: onlineNames.has(u.display_name), is_developer: u.is_developer }));
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;

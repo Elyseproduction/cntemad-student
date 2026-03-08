@@ -65,6 +65,13 @@ export interface ExerciseHistory {
   type: string;
 }
 
+export interface AppNotification {
+  id: string;
+  message: string;
+  tab: string;
+  timestamp: number;
+}
+
 interface AppContextType {
   isAdmin: boolean;
   login: (password: string) => boolean;
@@ -81,6 +88,8 @@ interface AppContextType {
   toggleDarkMode: () => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  notifications: AppNotification[];
+  dismissNotification: (id: string) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);

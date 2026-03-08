@@ -61,6 +61,7 @@ const App = () => (
         <AuthGate>
           <AppContent />
         </AuthGate>
+        <NotificationOverlay />
         <InstallBanner />
       </AppProvider>
     </TooltipProvider>

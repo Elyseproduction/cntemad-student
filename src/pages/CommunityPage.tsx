@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Download, X } from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount } from '@/components/Layout';
 
@@ -14,12 +14,15 @@ interface Message {
   image_url?: string;
   created_at: string;
   reactions: Record<string, number>;
+  is_deleted?: boolean;
+  is_edited?: boolean;
+  reply_to?: string | null;
 }
 
 const reactionEmojis = ['👍', '❤️', '😂', '🔥'];
 const emojiPicker = ['😀', '😂', '😍', '🤔', '👍', '👏', '🎉', '🔥', '❤️', '💪', '📚', '🧠', '💡', '⚡', '🎯', '✅'];
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
 export function CommunityPage() {
   const { toast } = useToast();
@@ -30,7 +33,12 @@ export function CommunityPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [editingMsg, setEditingMsg] = useState<string | null>(null);
+  const [editInput, setEditInput] = useState('');
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
   const [username] = useState(() => {
     const stored = localStorage.getItem('community_username');
     if (stored) return stored;
@@ -67,30 +75,26 @@ export function CommunityPage() {
     fetchMessages();
     const msgChannel = supabase
       .channel('community_messages_realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'community_messages' }, (payload) => {
-        const newMsg = payload.new as any;
-        setMessages(prev => {
-          // Avoid duplicates (from optimistic update)
-          const exists = prev.some(m => m.id === newMsg.id);
-          // Remove temp messages from same user if this is their real message
-          const filtered = prev.filter(m => !(m.id.startsWith('temp-') && m.auteur === newMsg.auteur && m.contenu === newMsg.contenu));
-          if (exists) return prev;
-          return [...filtered, {
-            ...newMsg,
-            reactions: (newMsg.reactions as Record<string, number>) || {},
-          }];
-        });
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'community_messages' }, (payload) => {
-        const updated = payload.new as any;
-        setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated, reactions: (updated.reactions as Record<string, number>) || {} } : m));
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newMsg = payload.new as any;
+          setMessages(prev => {
+            const exists = prev.some(m => m.id === newMsg.id);
+            const filtered = prev.filter(m => !(m.id.startsWith('temp-') && m.auteur === newMsg.auteur && m.contenu === newMsg.contenu));
+            if (exists) return prev;
+            return [...filtered, { ...newMsg, reactions: (newMsg.reactions as Record<string, number>) || {} }];
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const updated = payload.new as any;
+          setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated, reactions: (updated.reactions as Record<string, number>) || {} } : m));
+        } else if (payload.eventType === 'DELETE') {
+          const old = payload.old as any;
+          if (old?.id) setMessages(prev => prev.filter(m => m.id !== old.id));
+        }
       })
       .subscribe();
 
-    // Poll messages every second for instant sync
-    const pollInterval = setInterval(() => {
-      fetchMessages();
-    }, 1000);
+    const pollInterval = setInterval(() => { fetchMessages(); }, 1000);
 
     return () => {
       supabase.removeChannel(msgChannel);
@@ -102,13 +106,26 @@ export function CommunityPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    if (editingMsg && editInputRef.current) editInputRef.current.focus();
+  }, [editingMsg]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!activeMenu) return;
+    const handler = () => setActiveMenu(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [activeMenu]);
+
   const sendMessage = async () => {
     if (!input.trim()) return;
     const text = input;
     setInput('');
     setShowEmoji(false);
+    const replyId = replyTo?.id || null;
+    setReplyTo(null);
 
-    // Optimistic update — show message instantly
     const optimisticMsg: Message = {
       id: `temp-${Date.now()}`,
       auteur: username,
@@ -118,6 +135,7 @@ export function CommunityPage() {
       type: 'text',
       created_at: new Date().toISOString(),
       reactions: {},
+      reply_to: replyId,
     };
     setMessages(prev => [...prev, optimisticMsg]);
 
@@ -128,54 +146,28 @@ export function CommunityPage() {
       contenu: text,
       type: 'text',
       reactions: {},
+      reply_to: replyId,
     });
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.size > MAX_FILE_SIZE) {
-      toast({ title: 'Fichier trop volumineux', description: 'La taille maximale est de 100 Mo.', variant: 'destructive' });
-      return;
-    }
-
+    if (file.size > MAX_FILE_SIZE) { toast({ title: 'Fichier trop volumineux', description: 'Max 100 Mo.', variant: 'destructive' }); return; }
     const isImage = file.type.startsWith('image/');
     const isVideo = file.type.startsWith('video/');
-
-    if (!isImage && !isVideo) {
-      toast({ title: 'Type non supporté', description: 'Seules les photos et vidéos sont acceptées.', variant: 'destructive' });
-      return;
-    }
-
+    if (!isImage && !isVideo) { toast({ title: 'Type non supporté', description: 'Photos et vidéos uniquement.', variant: 'destructive' }); return; }
     setUploading(true);
     const ext = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('community-media')
-      .upload(fileName, file);
-
-    if (uploadError) {
-      toast({ title: 'Erreur upload', description: uploadError.message, variant: 'destructive' });
-      setUploading(false);
-      return;
-    }
-
-    const { data: urlData } = supabase.storage
-      .from('community-media')
-      .getPublicUrl(fileName);
-
+    const { error: uploadError } = await supabase.storage.from('community-media').upload(fileName, file);
+    if (uploadError) { toast({ title: 'Erreur upload', description: uploadError.message, variant: 'destructive' }); setUploading(false); return; }
+    const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
     await supabase.from('community_messages').insert({
-      auteur: username,
-      avatar: username[0].toUpperCase(),
-      couleur: userColor,
-      contenu: isImage ? '📷 Photo' : '🎥 Vidéo',
-      type: isImage ? 'image' : 'video',
-      image_url: urlData.publicUrl,
-      reactions: {},
+      auteur: username, avatar: username[0].toUpperCase(), couleur: userColor,
+      contenu: isImage ? '📷 Photo' : '🎥 Vidéo', type: isImage ? 'image' : 'video',
+      image_url: urlData.publicUrl, reactions: {},
     });
-
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -188,9 +180,51 @@ export function CommunityPage() {
     await supabase.from('community_messages').update({ reactions }).eq('id', msgId);
   };
 
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const deleteMessage = async (msg: Message) => {
+    setActiveMenu(null);
+    await supabase.from('community_messages').update({
+      is_deleted: true,
+      contenu: `🗑️ ${msg.auteur} a supprimé son message`,
+      type: 'text',
+      image_url: null,
+    }).eq('id', msg.id);
   };
+
+  const startEdit = (msg: Message) => {
+    setActiveMenu(null);
+    setEditingMsg(msg.id);
+    setEditInput(msg.contenu);
+  };
+
+  const confirmEdit = async () => {
+    if (!editingMsg || !editInput.trim()) return;
+    await supabase.from('community_messages').update({
+      contenu: editInput.trim(),
+      is_edited: true,
+    }).eq('id', editingMsg);
+    setEditingMsg(null);
+    setEditInput('');
+  };
+
+  const cancelEdit = () => {
+    setEditingMsg(null);
+    setEditInput('');
+  };
+
+  const copyMessage = (msg: Message) => {
+    setActiveMenu(null);
+    navigator.clipboard.writeText(msg.contenu);
+    toast({ title: 'Copié !', description: 'Message copié dans le presse-papier.' });
+  };
+
+  const replyToMessage = (msg: Message) => {
+    setActiveMenu(null);
+    setReplyTo(msg);
+  };
+
+  const formatTime = (dateStr: string) => new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  const getReplyMsg = (id: string | null | undefined) => id ? messages.find(m => m.id === id) : null;
 
   const handleDownload = async (url: string, type: string) => {
     try {
@@ -205,7 +239,7 @@ export function CommunityPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
     } catch {
-      toast({ title: 'Erreur', description: 'Impossible de télécharger le fichier.', variant: 'destructive' });
+      toast({ title: 'Erreur', description: 'Impossible de télécharger.', variant: 'destructive' });
     }
   };
 
@@ -237,79 +271,136 @@ export function CommunityPage() {
         )}
         {messages.map((msg) => {
           const isMe = msg.auteur === username;
+          const isDeleted = msg.is_deleted;
+          const replyMsg = getReplyMsg(msg.reply_to);
+
           return (
-            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-              <div className={`max-w-[80%] ${isMe ? 'order-2' : ''}`}>
+            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in group/msg`}>
+              <div className={`max-w-[80%] ${isMe ? 'order-2' : ''} relative`}>
+                {/* Author info */}
                 <div className="flex items-center gap-2 mb-1">
                   {!isMe && (
                     <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0" style={{ backgroundColor: msg.couleur }}>
                       {msg.avatar}
                     </div>
                   )}
-                  <span className="text-xs text-muted-foreground">{!isMe && <span className="font-medium text-foreground mr-1">{msg.auteur}</span>}{formatTime(msg.created_at)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {!isMe && <span className="font-medium text-foreground mr-1">{msg.auteur}</span>}
+                    {formatTime(msg.created_at)}
+                    {msg.is_edited && !isDeleted && <span className="ml-1 italic">(modifié)</span>}
+                  </span>
+
+                  {/* Context menu button */}
+                  {!isDeleted && !msg.id.startsWith('temp-') && (
+                    <div className="relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === msg.id ? null : msg.id); }}
+                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover/msg:opacity-100 transition-opacity"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+
+                      {activeMenu === msg.id && (
+                        <div className="absolute z-40 top-6 right-0 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[150px] animate-fade-in" onClick={e => e.stopPropagation()}>
+                          {/* Reply */}
+                          <button onClick={() => replyToMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                            <Reply size={14} /> Répondre
+                          </button>
+                          {/* Copy */}
+                          {msg.type === 'text' && (
+                            <button onClick={() => copyMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                              <Copy size={14} /> Copier
+                            </button>
+                          )}
+                          {/* Edit (own messages only) */}
+                          {isMe && msg.type === 'text' && (
+                            <button onClick={() => startEdit(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                              <Pencil size={14} /> Modifier
+                            </button>
+                          )}
+                          {/* Delete (own messages only) */}
+                          {isMe && (
+                            <button onClick={() => deleteMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-destructive hover:bg-muted transition-colors">
+                              <Trash2 size={14} /> Supprimer
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+                {/* Reply preview */}
+                {replyMsg && (
+                  <div className="mb-1 pl-3 border-l-2 border-primary/50 text-xs text-muted-foreground truncate max-w-full">
+                    <span className="font-medium text-foreground">{replyMsg.auteur}</span>: {replyMsg.is_deleted ? 'Message supprimé' : replyMsg.contenu}
+                  </div>
+                )}
+
                 <div className={`rounded-2xl overflow-hidden ${isMe ? 'rounded-br-md' : 'rounded-bl-md'}`}>
-                  {/* Image message */}
-                  {msg.type === 'image' && msg.image_url && (
-                    <div className="relative group">
-                      <img
-                        src={msg.image_url}
-                        alt="Photo partagée"
-                        className="max-w-full max-h-72 rounded-2xl cursor-pointer object-cover"
-                        onClick={() => setPreviewFile({ url: msg.image_url!, type: 'image' })}
-                      />
-                      <button
-                        onClick={() => handleDownload(msg.image_url!, 'photo')}
-                        className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background/90"
-                        title="Télécharger"
-                      >
-                        <Download size={16} />
-                      </button>
+                  {/* Deleted message */}
+                  {isDeleted ? (
+                    <div className="p-3 bg-muted/50 italic text-muted-foreground text-sm">
+                      {isMe ? '🗑️ Vous avez supprimé ce message' : msg.contenu}
                     </div>
-                  )}
-
-                  {/* Video message */}
-                  {msg.type === 'video' && msg.image_url && (
-                    <div className="relative group">
-                      <video
-                        src={msg.image_url}
-                        controls
-                        className="max-w-full max-h-72 rounded-2xl"
-                        preload="metadata"
-                      />
-                      <button
-                        onClick={() => handleDownload(msg.image_url!, 'video')}
-                        className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background/90"
-                        title="Télécharger"
-                      >
-                        <Download size={16} />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Text message */}
-                  {msg.type === 'text' && (
-                    <div className={`p-3 ${isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                      <p className="text-sm leading-relaxed">{msg.contenu}</p>
-                    </div>
+                  ) : (
+                    <>
+                      {msg.type === 'image' && msg.image_url && (
+                        <div className="relative group">
+                          <img src={msg.image_url} alt="Photo" className="max-w-full max-h-72 rounded-2xl cursor-pointer object-cover" onClick={() => setPreviewFile({ url: msg.image_url!, type: 'image' })} />
+                          <button onClick={() => handleDownload(msg.image_url!, 'photo')} className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background/90" title="Télécharger">
+                            <Download size={16} />
+                          </button>
+                        </div>
+                      )}
+                      {msg.type === 'video' && msg.image_url && (
+                        <div className="relative group">
+                          <video src={msg.image_url} controls className="max-w-full max-h-72 rounded-2xl" preload="metadata" />
+                          <button onClick={() => handleDownload(msg.image_url!, 'video')} className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background/90" title="Télécharger">
+                            <Download size={16} />
+                          </button>
+                        </div>
+                      )}
+                      {msg.type === 'text' && (
+                        editingMsg === msg.id ? (
+                          <div className="flex items-center gap-1 p-1 bg-secondary rounded-xl">
+                            <input
+                              ref={editInputRef}
+                              value={editInput}
+                              onChange={e => setEditInput(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') confirmEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                              className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-background border border-border focus:border-primary outline-none text-foreground text-sm"
+                            />
+                            <button onClick={confirmEdit} className="p-2 text-primary hover:bg-muted rounded-lg"><Check size={16} /></button>
+                            <button onClick={cancelEdit} className="p-2 text-muted-foreground hover:bg-muted rounded-lg"><X size={16} /></button>
+                          </div>
+                        ) : (
+                          <div className={`p-3 ${isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                            <p className="text-sm leading-relaxed">{msg.contenu}</p>
+                          </div>
+                        )
+                      )}
+                    </>
                   )}
                 </div>
 
                 {/* Reactions */}
-                <div className="flex items-center gap-1 mt-1 flex-wrap">
-                  {Object.entries(msg.reactions).filter(([, count]) => count > 0).map(([emoji, count]) => (
-                    <button key={emoji} onClick={() => addReaction(msg.id, emoji)} className="text-xs px-2 py-0.5 rounded-full bg-muted hover:bg-muted/80 transition-colors">
-                      {emoji} {count}
-                    </button>
-                  ))}
-                  <div className="flex gap-0.5 opacity-0 hover:opacity-100 transition-opacity">
-                    {reactionEmojis.map(e => (
-                      <button key={e} onClick={() => addReaction(msg.id, e)} className="text-xs p-1 hover:bg-muted rounded transition-colors">
-                        {e}
+                {!isDeleted && (
+                  <div className="flex items-center gap-1 mt-1 flex-wrap">
+                    {Object.entries(msg.reactions).filter(([, count]) => count > 0).map(([emoji, count]) => (
+                      <button key={emoji} onClick={() => addReaction(msg.id, emoji)} className="text-xs px-2 py-0.5 rounded-full bg-muted hover:bg-muted/80 transition-colors">
+                        {emoji} {count}
                       </button>
                     ))}
+                    <div className="flex gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                      {reactionEmojis.map(e => (
+                        <button key={e} onClick={() => addReaction(msg.id, e)} className="text-xs p-1 hover:bg-muted rounded transition-colors">
+                          {e}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           );
@@ -329,7 +420,6 @@ export function CommunityPage() {
         </div>
       )}
 
-      {/* Upload indicator */}
       {uploading && (
         <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground animate-fade-in">
           <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />
@@ -337,15 +427,22 @@ export function CommunityPage() {
         </div>
       )}
 
+      {/* Reply banner */}
+      {replyTo && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-secondary/80 rounded-t-xl border-l-2 border-primary text-sm animate-fade-in">
+          <Reply size={14} className="text-primary shrink-0" />
+          <span className="truncate text-muted-foreground">
+            Répondre à <span className="font-medium text-foreground">{replyTo.auteur}</span>: {replyTo.contenu}
+          </span>
+          <button onClick={() => setReplyTo(null)} className="ml-auto shrink-0 p-1 hover:bg-muted rounded">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Input */}
       <div className="flex items-center gap-1.5 sm:gap-2 pt-3 pb-1 border-t border-border shrink-0">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,video/*"
-          onChange={handleFileUpload}
-          className="hidden"
-        />
+        <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleFileUpload} className="hidden" />
         <div className="flex items-center shrink-0">
           <button onClick={() => setShowEmoji(!showEmoji)} className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
             <Smile size={18} />
@@ -358,7 +455,7 @@ export function CommunityPage() {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && sendMessage()}
-          placeholder="Message..."
+          placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Message...'}
           className="flex-1 min-w-0 px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground text-sm"
         />
         <button onClick={sendMessage} disabled={!input.trim()} className="p-2.5 sm:p-3 rounded-xl gradient-bg text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0">
@@ -366,19 +463,11 @@ export function CommunityPage() {
         </button>
       </div>
 
-      {/* Fullscreen preview modal */}
+      {/* Fullscreen preview */}
       {previewFile && (
         <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPreviewFile(null)}>
-          <button onClick={() => setPreviewFile(null)} className="absolute top-4 right-4 p-2 rounded-full bg-secondary hover:bg-muted transition-colors z-10">
-            <X size={24} />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); handleDownload(previewFile.url, previewFile.type); }}
-            className="absolute top-4 right-16 p-2 rounded-full bg-secondary hover:bg-muted transition-colors z-10"
-            title="Télécharger"
-          >
-            <Download size={24} />
-          </button>
+          <button onClick={() => setPreviewFile(null)} className="absolute top-4 right-4 p-2 rounded-full bg-secondary hover:bg-muted transition-colors z-10"><X size={24} /></button>
+          <button onClick={(e) => { e.stopPropagation(); handleDownload(previewFile.url, previewFile.type); }} className="absolute top-4 right-16 p-2 rounded-full bg-secondary hover:bg-muted transition-colors z-10" title="Télécharger"><Download size={24} /></button>
           {previewFile.type === 'image' ? (
             <img src={previewFile.url} alt="Preview" className="max-w-full max-h-[90vh] object-contain rounded-xl" onClick={e => e.stopPropagation()} />
           ) : (

@@ -2,3 +2,6 @@ project_id = "vmrirmolivuqamybmsec"
 
 [functions.generate-exercises]
 verify_jwt = false
+
+[functions.extract-course]
+verify_jwt = false

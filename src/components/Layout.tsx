@@ -32,6 +32,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [lastSeenCount, setLastSeenCount] = useState(0);
   const [onlineCount, setOnlineCount] = useState(0);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
 
   // App-wide presence tracking
   useEffect(() => {

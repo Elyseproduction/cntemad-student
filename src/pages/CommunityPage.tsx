@@ -68,16 +68,16 @@ export function CommunityPage() {
     setLoading(false);
   }, []);
 
-  // Fetch all registered users for mentions
-  useEffect(() => {
-    const fetchProfiles = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('display_name, avatar_url, is_admin_badge');
-      if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ display_name: p.display_name!, avatar_url: p.avatar_url, is_admin_badge: (p as any).is_admin_badge ?? false })));
-    };
-    fetchProfiles();
-  }, []);
+   // Fetch all registered users for mentions
+   useEffect(() => {
+     const fetchProfiles = async () => {
+       const { data } = await supabase
+         .from('profiles')
+         .select('display_name, avatar_url, is_admin_badge, is_developer');
+       if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ display_name: p.display_name!, avatar_url: p.avatar_url, is_admin_badge: (p as any).is_admin_badge ?? false, is_developer: (p as any).is_developer ?? false })));
+     };
+     fetchProfiles();
+   }, []);
 
   useEffect(() => {
     fetchMessages();

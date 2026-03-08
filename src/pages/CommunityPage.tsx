@@ -102,8 +102,17 @@ export function CommunityPage() {
     };
   }, [fetchMessages]);
 
+  const prevMsgCount = useRef(0);
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    const el = scrollRef.current;
+    if (!el) return;
+    // Only auto-scroll if user is near bottom or new messages were added
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    const hasNewMessages = messages.length > prevMsgCount.current;
+    if (isNearBottom && hasNewMessages) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    }
+    prevMsgCount.current = messages.length;
   }, [messages]);
 
   useEffect(() => {

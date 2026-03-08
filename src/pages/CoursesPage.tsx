@@ -79,9 +79,9 @@ function SectionRenderer({ section }: { section: Chapter['sections'][0] }) {
       return (
         <div className="my-3 md:my-4">
           <p className="text-xs md:text-sm text-muted-foreground mb-1">{section.titre}</p>
-          <div className="rounded-xl bg-muted/50 border border-border overflow-x-auto -mx-1 md:mx-0">
+          <div className="rounded-xl bg-muted/50 border border-border overflow-auto max-h-[60vh] -mx-1 md:mx-0">
             <pre className="p-3 md:p-4 font-mono text-xs md:text-sm leading-relaxed min-w-0">
-              <code className="break-all md:break-normal">{section.contenu}</code>
+              <code className="break-all md:break-normal whitespace-pre-wrap">{section.contenu}</code>
             </pre>
           </div>
         </div>
@@ -90,16 +90,16 @@ function SectionRenderer({ section }: { section: Chapter['sections'][0] }) {
       return (
         <div className="my-3 md:my-4">
           <p className="font-semibold mb-2 text-sm md:text-base">{section.titre}</p>
-          <div className="rounded-xl bg-muted/30 border border-border overflow-x-auto -mx-1 md:mx-0">
-            <pre className="p-3 md:p-4 font-mono text-xs md:text-sm min-w-0">{section.contenu}</pre>
+          <div className="rounded-xl bg-muted/30 border border-border overflow-auto max-h-[60vh] -mx-1 md:mx-0">
+            <pre className="p-3 md:p-4 font-mono text-xs md:text-sm min-w-0 whitespace-pre-wrap">{section.contenu}</pre>
           </div>
         </div>
       );
     case 'schema':
       return (
-        <div className="my-3 md:my-4 p-3 md:p-4 rounded-xl bg-muted/30 border border-dashed border-primary/30 overflow-x-auto">
+        <div className="my-3 md:my-4 p-3 md:p-4 rounded-xl bg-muted/30 border border-dashed border-primary/30 overflow-auto max-h-[60vh]">
           <p className="font-semibold text-primary mb-2 text-sm md:text-base">🔷 {section.titre}</p>
-          <pre className="font-mono text-xs md:text-sm leading-relaxed min-w-0">{section.contenu}</pre>
+          <pre className="font-mono text-xs md:text-sm leading-relaxed min-w-0 whitespace-pre-wrap">{section.contenu}</pre>
         </div>
       );
     default:

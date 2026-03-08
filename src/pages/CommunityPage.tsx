@@ -32,6 +32,7 @@ export function CommunityPage() {
   const { users: onlineUsers } = useOnlineUsers();
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [allProfiles, setAllProfiles] = useState<{ display_name: string; avatar_url: string | null }[]>([]);
   const [input, setInput] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -65,6 +66,17 @@ export function CommunityPage() {
       })));
     }
     setLoading(false);
+  }, []);
+
+  // Fetch all registered users for mentions
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('display_name, avatar_url');
+      if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ display_name: p.display_name!, avatar_url: p.avatar_url })));
+    };
+    fetchProfiles();
   }, []);
 
   useEffect(() => {
@@ -128,10 +140,12 @@ export function CommunityPage() {
     return () => document.removeEventListener('click', handler);
   }, [activeMenu]);
 
-  // Mention logic
-  const filteredMentionUsers = onlineUsers
-    .filter(u => u.username !== username)
-    .filter(u => !mentionFilter || u.username.toLowerCase().includes(mentionFilter.toLowerCase()));
+  // Mention logic - show all registered users, with online indicator
+  const onlineNames = new Set(onlineUsers.map(u => u.username));
+  const filteredMentionUsers = allProfiles
+    .filter(u => u.display_name !== username)
+    .filter(u => !mentionFilter || u.display_name.toLowerCase().includes(mentionFilter.toLowerCase()))
+    .map(u => ({ username: u.display_name, avatar_url: u.avatar_url, isOnline: onlineNames.has(u.display_name) }));
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -590,18 +604,22 @@ export function CommunityPage() {
       {/* Mention dropdown */}
       {showMentions && filteredMentionUsers.length > 0 && (
         <div className="bg-popover border border-border rounded-xl shadow-lg py-1 mb-1 max-h-40 overflow-y-auto animate-fade-in">
-          <div className="px-3 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Utilisateurs en ligne</div>
+          <div className="px-3 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Mentionner un utilisateur</div>
           {filteredMentionUsers.map((u, i) => (
             <button
               key={u.username}
               onClick={() => insertMention(u.username)}
               className={`flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors ${i === mentionIndex ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'}`}
             >
-              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground shrink-0" style={{ backgroundColor: u.color }}>
-                {u.username[0]?.toUpperCase()}
-              </div>
+              {u.avatar_url ? (
+                <img src={u.avatar_url} alt={u.username} className="w-6 h-6 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-primary text-primary-foreground shrink-0">
+                  {u.username[0]?.toUpperCase()}
+                </div>
+              )}
               <span className="truncate">{u.username}</span>
-              <span className="ml-auto w-2 h-2 rounded-full bg-green-500 shrink-0" />
+              {u.isOnline && <span className="ml-auto w-2 h-2 rounded-full bg-green-500 shrink-0" title="En ligne" />}
             </button>
           ))}
         </div>

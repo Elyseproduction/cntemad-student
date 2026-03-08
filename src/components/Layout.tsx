@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, createContext, useContext } from 'rea
 import { BookOpen, Brain, MessageCircle, Video, Settings, LogOut, Moon, Sun, Lock, Menu, X } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { AdminModal } from '@/components/AdminModal';
+import { ProfileMenu } from '@/components/ProfileMenu';
 import { supabase } from '@/integrations/supabase/client';
 
 const tabs = [

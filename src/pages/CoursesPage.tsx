@@ -469,7 +469,10 @@ export function CoursesPage() {
             <h1 className="font-heading font-bold text-2xl">{currentSubject.nom}</h1>
           </div>
           {isAdmin && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={() => setShowImportCourse(true)} className="px-4 py-2 rounded-lg bg-accent/20 text-accent text-sm font-medium hover:bg-accent/30 transition-colors flex items-center gap-2">
+                <FileUp size={16} /> Importer (PDF/Image)
+              </button>
               <button onClick={() => setShowCreateChapter(true)} className="px-4 py-2 rounded-lg gradient-bg text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
                 <Plus size={16} /> Nouveau Chapitre
               </button>

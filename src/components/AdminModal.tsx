@@ -6,9 +6,23 @@ import { useToast } from '@/hooks/use-toast';
 
 export function AdminModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { isAdmin, login } = useApp();
+  const { toast } = useToast();
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
+  const [clearing, setClearing] = useState(false);
+
+  const clearAllMessages = async () => {
+    if (!confirm('Supprimer TOUS les messages de la communauté ? Cette action est irréversible.')) return;
+    setClearing(true);
+    const { error } = await supabase.from('community_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    setClearing(false);
+    if (error) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: '✅ Conversations supprimées', description: 'Tous les messages ont été effacés.' });
+    }
+  };
 
   if (!open) return null;
 

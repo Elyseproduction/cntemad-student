@@ -186,7 +186,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className={`animate-fade-in ${activeTab === 'communaute' ? 'h-[calc(100dvh-4rem)] md:h-[calc(100dvh-4rem)] overflow-hidden p-0 md:p-0' : 'p-4 md:p-6 pb-24 md:pb-6'}`}>
+        <main className={`animate-fade-in ${activeTab === 'communaute' ? 'h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)] overflow-hidden' : 'p-4 md:p-6 pb-24 md:pb-6'}`}>
           {children}
         </main>
       </div>

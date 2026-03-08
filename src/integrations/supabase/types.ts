@@ -23,7 +23,10 @@ export type Database = {
           created_at: string
           id: string
           image_url: string | null
+          is_deleted: boolean
+          is_edited: boolean
           reactions: Json
+          reply_to: string | null
           type: string
         }
         Insert: {
@@ -34,7 +37,10 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          is_deleted?: boolean
+          is_edited?: boolean
           reactions?: Json
+          reply_to?: string | null
           type?: string
         }
         Update: {
@@ -45,10 +51,21 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          is_deleted?: boolean
+          is_edited?: boolean
           reactions?: Json
+          reply_to?: string | null
           type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "community_messages_reply_to_fkey"
+            columns: ["reply_to"]
+            isOneToOne: false
+            referencedRelation: "community_messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

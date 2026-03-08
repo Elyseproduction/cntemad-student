@@ -68,6 +68,17 @@ export function CommunityPage() {
     setLoading(false);
   }, []);
 
+  // Fetch all registered users for mentions
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('display_name, avatar_url');
+      if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ display_name: p.display_name!, avatar_url: p.avatar_url })));
+    };
+    fetchProfiles();
+  }, []);
+
   useEffect(() => {
     fetchMessages();
     const msgChannel = supabase

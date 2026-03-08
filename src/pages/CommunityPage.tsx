@@ -282,10 +282,6 @@ export function CommunityPage() {
     );
   }
 
-  if (!user) {
-    return <GoogleLoginButton />;
-  }
-
   return (
     <div className="max-w-3xl mx-auto flex flex-col animate-fade-in h-full px-2 pt-4 overflow-hidden">
       <div className="flex items-center justify-between mb-4">

@@ -240,7 +240,7 @@ export function ExercisesPage() {
         </div>
 
         {/* Question Card */}
-        <div className={`glass-card p-6 md:p-8 mb-6 transition-all ${answered ? (isCorrect ? 'border-success/50 animate-pulse-glow' : 'border-destructive/50 animate-shake') : ''}`}>
+        <div className={`glass-card p-6 md:p-8 mb-6 transition-all duration-300 ${answered ? (isCorrect ? 'border-success/50 shadow-success/20 shadow-lg' : 'border-destructive/50 shadow-destructive/20 shadow-lg animate-shake') : 'card-shine'}`}>
           <p className="text-lg md:text-xl font-medium leading-relaxed mb-6">{exercise.enonce}</p>
 
           {/* QCM */}

@@ -29,6 +29,7 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024;
 export function CommunityPage() {
   const { toast } = useToast();
   const onlineCount = useOnlineCount();
+  const { users: onlineUsers } = useOnlineUsers();
   const { user, profile, loading: authLoading, signOut } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');

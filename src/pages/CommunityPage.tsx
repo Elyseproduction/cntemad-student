@@ -281,7 +281,7 @@ export function CommunityPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col animate-fade-in overflow-hidden px-1" style={{ height: 'calc(100dvh - 8rem)' }}>
+    <div className="max-w-3xl mx-auto flex flex-col animate-fade-in overflow-hidden h-full px-2 pt-4">
       <div className="flex items-center justify-between mb-4">
         <h1 className="font-heading font-bold text-2xl">💬 Communauté</h1>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

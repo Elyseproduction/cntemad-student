@@ -28,6 +28,7 @@ export type Database = {
           reactions: Json
           reply_to: string | null
           type: string
+          user_id: string | null
         }
         Insert: {
           auteur: string
@@ -42,6 +43,7 @@ export type Database = {
           reactions?: Json
           reply_to?: string | null
           type?: string
+          user_id?: string | null
         }
         Update: {
           auteur?: string
@@ -56,6 +58,7 @@ export type Database = {
           reactions?: Json
           reply_to?: string | null
           type?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -65,7 +68,35 @@ export type Database = {
             referencedRelation: "community_messages"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "community_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

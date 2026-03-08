@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText } from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount } from '@/components/Layout';
+import { useAuth } from '@/hooks/useAuth';
+import { GoogleLoginButton } from '@/components/GoogleLoginButton';
 
 interface Message {
   id: string;
@@ -27,6 +29,7 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024;
 export function CommunityPage() {
   const { toast } = useToast();
   const onlineCount = useOnlineCount();
+  const { user, profile, loading: authLoading, signOut } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
@@ -39,22 +42,10 @@ export function CommunityPage() {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-  const [username] = useState(() => {
-    const stored = localStorage.getItem('community_username');
-    if (stored) return stored;
-    const names = ['Étudiant', 'User', 'Anonyme'];
-    const name = names[Math.floor(Math.random() * names.length)] + Math.floor(Math.random() * 100);
-    localStorage.setItem('community_username', name);
-    return name;
-  });
-  const [userColor] = useState(() => {
-    const stored = localStorage.getItem('community_color');
-    if (stored) return stored;
-    const colors = ['#6C63FF', '#00BCD4', '#FF6B6B', '#FFB74D', '#AB47BC', '#4CAF50'];
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    localStorage.setItem('community_color', color);
-    return color;
-  });
+
+  const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
+  const userAvatar = profile?.avatar_url || '';
+  const userColor = '#6C63FF';
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchMessages = useCallback(async () => {
@@ -138,7 +129,7 @@ export function CommunityPage() {
     const optimisticMsg: Message = {
       id: `temp-${Date.now()}`,
       auteur: username,
-      avatar: username[0].toUpperCase(),
+      avatar: userAvatar || username[0].toUpperCase(),
       couleur: userColor,
       contenu: text,
       type: 'text',
@@ -150,12 +141,13 @@ export function CommunityPage() {
 
     await supabase.from('community_messages').insert({
       auteur: username,
-      avatar: username[0].toUpperCase(),
+      avatar: userAvatar || username[0].toUpperCase(),
       couleur: userColor,
       contenu: text,
       type: 'text',
       reactions: {},
       reply_to: replyId,
+      user_id: user?.id,
     });
   };
 
@@ -184,9 +176,9 @@ export function CommunityPage() {
     const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
     const fileType = getFileType(file);
     await supabase.from('community_messages').insert({
-      auteur: username, avatar: username[0].toUpperCase(), couleur: userColor,
+      auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
       contenu: getFileLabel(file), type: fileType,
-      image_url: urlData.publicUrl, reactions: {},
+      image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
     });
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -281,7 +273,7 @@ export function CommunityPage() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -289,13 +281,26 @@ export function CommunityPage() {
     );
   }
 
+  if (!user) {
+    return <GoogleLoginButton />;
+  }
+
   return (
     <div className="max-w-3xl mx-auto flex flex-col animate-fade-in overflow-hidden h-full px-2 pt-4">
       <div className="flex items-center justify-between mb-4">
         <h1 className="font-heading font-bold text-2xl">💬 Communauté</h1>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Users size={16} />
-          <span>{onlineCount} en ligne</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Users size={16} />
+            <span>{onlineCount} en ligne</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {userAvatar && <img src={userAvatar} alt="" className="w-6 h-6 rounded-full" />}
+            <span className="text-xs text-muted-foreground hidden sm:inline">{username}</span>
+            <button onClick={signOut} className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Déconnexion">
+              <LogOut size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -318,9 +323,13 @@ export function CommunityPage() {
                 {/* Author info */}
                 <div className="flex items-center gap-2 mb-1">
                   {!isMe && (
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0" style={{ backgroundColor: msg.couleur }}>
-                      {msg.avatar}
-                    </div>
+                    msg.avatar?.startsWith('http') ? (
+                      <img src={msg.avatar} alt={msg.auteur} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0" style={{ backgroundColor: msg.couleur }}>
+                        {msg.avatar}
+                      </div>
+                    )
                   )}
                   <span className="text-xs text-muted-foreground">
                     {!isMe && <span className="font-medium text-foreground mr-1">{msg.auteur}</span>}

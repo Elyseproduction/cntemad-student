@@ -1,8 +1,15 @@
-import { useState } from 'react';
-import { Lock, Eye, EyeOff, Trash2, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Lock, Eye, EyeOff, Trash2, AlertTriangle, Shield, ShieldCheck } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+
+interface ProfileItem {
+  id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  is_admin_badge: boolean;
+}
 
 function ConfirmDialog({ open, onConfirm, onCancel, loading }: { open: boolean; onConfirm: () => void; onCancel: () => void; loading: boolean }) {
   if (!open) return null;
@@ -36,6 +43,38 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [error, setError] = useState('');
   const [clearing, setClearing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [profiles, setProfiles] = useState<ProfileItem[]>([]);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open && isAdmin) {
+      supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url, is_admin_badge')
+        .then(({ data }) => {
+          if (data) setProfiles(data as ProfileItem[]);
+        });
+    }
+  }, [open, isAdmin]);
+
+  const toggleBadge = async (profile: ProfileItem) => {
+    setTogglingId(profile.id);
+    const newValue = !profile.is_admin_badge;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_admin_badge: newValue } as any)
+      .eq('id', profile.id);
+    setTogglingId(null);
+    if (error) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } else {
+      setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, is_admin_badge: newValue } : p));
+      toast({
+        title: newValue ? '🛡️ Badge activé' : 'Badge retiré',
+        description: `${profile.display_name || 'Utilisateur'} ${newValue ? 'a maintenant le badge admin' : "n'a plus le badge admin"}.`,
+      });
+    }
+  };
 
   const clearAllMessages = async () => {
     setClearing(true);
@@ -67,12 +106,54 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
       <>
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
-          <div className="relative glass-card p-8 max-w-sm w-full mx-4 animate-scale-in text-center">
+          <div className="relative glass-card p-8 max-w-md w-full mx-4 animate-scale-in">
             <div className="w-16 h-16 rounded-full gradient-bg flex items-center justify-center mx-auto mb-4">
               <Lock size={28} className="text-primary-foreground" />
             </div>
-            <h2 className="font-heading font-bold text-xl mb-2">Mode Admin actif</h2>
-            <p className="text-muted-foreground text-sm mb-6">Vous avez accès à toutes les fonctionnalités d'administration.</p>
+            <h2 className="font-heading font-bold text-xl text-center mb-2">Mode Admin actif</h2>
+            <p className="text-muted-foreground text-sm text-center mb-6">Gérez les badges et les conversations.</p>
+
+            {/* Badge management section */}
+            <div className="mb-6">
+              <h3 className="font-heading font-semibold text-sm mb-3 flex items-center gap-2">
+                <Shield size={16} className="text-primary" />
+                Badges Administrateur
+              </h3>
+              <div className="max-h-48 overflow-y-auto space-y-2 rounded-lg border border-border p-2 bg-secondary/30">
+                {profiles.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">Chargement...</p>
+                )}
+                {profiles.map(p => (
+                  <div key={p.id} className="flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-secondary/50 transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {p.avatar_url ? (
+                        <img src={p.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                          {(p.display_name || '?')[0].toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-sm font-medium truncate">{p.display_name || 'Sans nom'}</span>
+                      {p.is_admin_badge && (
+                        <ShieldCheck size={14} className="text-primary shrink-0" />
+                      )}
+                    </div>
+                    <button
+                      onClick={() => toggleBadge(p)}
+                      disabled={togglingId === p.id}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
+                        p.is_admin_badge
+                          ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                          : 'bg-primary/10 text-primary hover:bg-primary/20'
+                      } disabled:opacity-50`}
+                    >
+                      {togglingId === p.id ? '...' : p.is_admin_badge ? 'Retirer' : 'Activer'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-3">
               <button
                 onClick={() => setShowConfirm(true)}

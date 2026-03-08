@@ -8,8 +8,32 @@ import { CoursesPage } from "@/pages/CoursesPage";
 import { ExercisesPage } from "@/pages/ExercisesPage";
 import { CommunityPage } from "@/pages/CommunityPage";
 import { VideoPage } from "@/pages/VideoPage";
+import { useAuth } from "@/hooks/useAuth";
+import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 
 const queryClient = new QueryClient();
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-mesh">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-mesh">
+        <GoogleLoginButton />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 function AppContent() {
   const { activeTab } = useApp();
@@ -30,7 +54,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AppProvider>
-        <AppContent />
+        <AuthGate>
+          <AppContent />
+        </AuthGate>
       </AppProvider>
     </TooltipProvider>
   </QueryClientProvider>

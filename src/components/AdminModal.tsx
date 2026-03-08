@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Lock, Eye, EyeOff, Trash2, AlertTriangle, Shield, ShieldCheck } from 'lucide-react';
+import { Lock, Eye, EyeOff, Trash2, AlertTriangle, Shield, ShieldCheck, Code } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';

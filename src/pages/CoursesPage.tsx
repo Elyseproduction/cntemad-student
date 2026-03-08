@@ -289,8 +289,14 @@ export function CoursesPage() {
   const [readProgress, setReadProgress] = useState(0);
 
   const publishedSubjects = useMemo(() => {
-    if (isAdmin) return subjects;
-    return subjects.map(s => ({ ...s, chapitres: s.chapitres.filter(c => c.published) })).filter(s => s.chapitres.length > 0);
+    if (isAdmin) return subjects.map(s => ({
+      ...s,
+      chapitres: [...s.chapitres].sort((a, b) => parseInt(b.id) - parseInt(a.id))
+    }));
+    return subjects.map(s => ({
+      ...s,
+      chapitres: s.chapitres.filter(c => c.published).sort((a, b) => parseInt(b.id) - parseInt(a.id))
+    })).filter(s => s.chapitres.length > 0);
   }, [subjects, isAdmin]);
 
   const filteredSubjects = useMemo(() => {

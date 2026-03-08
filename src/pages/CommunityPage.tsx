@@ -5,7 +5,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
 import { GoogleLoginButton } from '@/components/GoogleLoginButton';
-import { GoogleLoginButton } from '@/components/GoogleLoginButton';
 
 interface Message {
   id: string;

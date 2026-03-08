@@ -74,6 +74,10 @@ export function CommunityPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new as any;
+          // Check if current user is mentioned
+          if (newMsg.auteur !== username && newMsg.contenu?.includes(`@${username}`)) {
+            toast({ title: `💬 ${newMsg.auteur} vous a mentionné`, description: newMsg.contenu.slice(0, 80) });
+          }
           setMessages(prev => {
             const exists = prev.some(m => m.id === newMsg.id);
             const filtered = prev.filter(m => !(m.id.startsWith('temp-') && m.auteur === newMsg.auteur && m.contenu === newMsg.contenu));

@@ -9,6 +9,7 @@ interface ProfileItem {
   display_name: string | null;
   avatar_url: string | null;
   is_admin_badge: boolean;
+  is_developer?: boolean;
 }
 
 function ConfirmDialog({ open, onConfirm, onCancel, loading }: { open: boolean; onConfirm: () => void; onCancel: () => void; loading: boolean }) {

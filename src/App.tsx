@@ -10,6 +10,7 @@ import { CommunityPage } from "@/pages/CommunityPage";
 import { VideoPage } from "@/pages/VideoPage";
 import { useAuth } from "@/hooks/useAuth";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
+import { InstallBanner } from "@/components/InstallBanner";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ const App = () => (
         <AuthGate>
           <AppContent />
         </AuthGate>
+        <InstallBanner />
       </AppProvider>
     </TooltipProvider>
   </QueryClientProvider>

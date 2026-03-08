@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Video, Download, X } from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useOnlineCount } from '@/components/Layout';
 
 interface Message {
   id: string;
@@ -22,12 +23,12 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 export function CommunityPage() {
   const { toast } = useToast();
+  const onlineCount = useOnlineCount();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [onlineCount, setOnlineCount] = useState(0);
   const [previewFile, setPreviewFile] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [username] = useState(() => {
@@ -86,24 +87,16 @@ export function CommunityPage() {
       })
       .subscribe();
 
-    const presenceChannel = supabase.channel('community_presence', {
-      config: { presence: { key: username } },
-    });
-    presenceChannel
-      .on('presence', { event: 'sync' }, () => {
-        setOnlineCount(Object.keys(presenceChannel.presenceState()).length);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({ username, color: userColor });
-        }
-      });
+    // Poll messages every second for instant sync
+    const pollInterval = setInterval(() => {
+      fetchMessages();
+    }, 1000);
 
     return () => {
       supabase.removeChannel(msgChannel);
-      supabase.removeChannel(presenceChannel);
+      clearInterval(pollInterval);
     };
-  }, [fetchMessages, username, userColor]);
+  }, [fetchMessages]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });

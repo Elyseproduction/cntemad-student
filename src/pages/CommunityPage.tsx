@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Video, Download, X } from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useOnlineCount } from '@/components/Layout';
 
 interface Message {
   id: string;

@@ -10,6 +10,7 @@ import { CommunityPage } from "@/pages/CommunityPage";
 import { VideoPage } from "@/pages/VideoPage";
 import { useAuth } from "@/hooks/useAuth";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
+import { ProfileSetup } from "@/components/ProfileSetup";
 import { InstallBanner } from "@/components/InstallBanner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { NotificationOverlay } from "@/components/NotificationOverlay";
@@ -17,7 +18,7 @@ import { NotificationOverlay } from "@/components/NotificationOverlay";
 const queryClient = new QueryClient();
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading, needsSetup, completeSetup } = useAuth();
 
   if (loading) {
     return (
@@ -32,6 +33,17 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen flex items-center justify-center gradient-mesh">
         <GoogleLoginButton />
       </div>
+    );
+  }
+
+  if (needsSetup) {
+    return (
+      <ProfileSetup
+        userId={user.id}
+        defaultName={user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur'}
+        defaultAvatar={user.user_metadata?.avatar_url || user.user_metadata?.picture || null}
+        onComplete={completeSetup}
+      />
     );
   }
 

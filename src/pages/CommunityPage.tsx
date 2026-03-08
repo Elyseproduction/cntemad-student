@@ -629,6 +629,7 @@ export function CommunityPage() {
                 </div>
               )}
               <span className="truncate">{u.username}</span>
+              {u.is_developer && <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent font-semibold shrink-0">Dev</span>}
               {u.isOnline && <span className="ml-auto w-2 h-2 rounded-full bg-green-500 shrink-0" title="En ligne" />}
             </button>
           ))}

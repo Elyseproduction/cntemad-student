@@ -176,17 +176,23 @@ export function CommunityPage() {
     const msg = messages.find(m => m.id === msgId);
     if (!msg) return;
     const reactions: Record<string, string[]> = {};
-    // Deep copy
     for (const [key, val] of Object.entries(msg.reactions)) {
       reactions[key] = Array.isArray(val) ? [...val] : [];
     }
+    // Remove user from ALL other emojis first (1 emoji per user per message)
+    for (const key of Object.keys(reactions)) {
+      if (key !== emoji) {
+        reactions[key] = reactions[key].filter(u => u !== username);
+        if (reactions[key].length === 0) delete reactions[key];
+      }
+    }
     const users = reactions[emoji] || [];
     if (users.includes(username)) {
-      // Remove reaction (toggle off)
+      // Toggle off same emoji
       reactions[emoji] = users.filter(u => u !== username);
       if (reactions[emoji].length === 0) delete reactions[emoji];
     } else {
-      // Add reaction (toggle on)
+      // Set this emoji
       reactions[emoji] = [...users, username];
     }
     await supabase.from('community_messages').update({ reactions }).eq('id', msgId);

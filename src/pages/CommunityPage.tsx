@@ -390,6 +390,18 @@ export function CommunityPage() {
                           </button>
                         </div>
                       )}
+                      {msg.type === 'file' && msg.image_url && (
+                        <div className="p-3 bg-secondary rounded-2xl flex items-center gap-3 group cursor-pointer" onClick={() => handleDownload(msg.image_url!, 'file')}>
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <FileText size={20} className="text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{msg.contenu}</p>
+                            <p className="text-xs text-muted-foreground">Cliquer pour télécharger</p>
+                          </div>
+                          <Download size={16} className="text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      )}
                       {msg.type === 'text' && (
                         editingMsg === msg.id ? (
                           <div className="flex items-center gap-1 p-1 bg-secondary rounded-xl">

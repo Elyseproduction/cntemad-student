@@ -427,11 +427,11 @@ export function CoursesPage() {
 
         {/* Points clés */}
         {selectedChapter.points_cles.length > 0 && (
-          <div className="glass-card p-6 mb-6 bg-primary/5">
-            <h3 className="font-heading font-semibold text-lg text-primary mb-3">📋 Points clés à retenir</h3>
-            <ul className="space-y-2">
+          <div className="glass-card p-3 md:p-6 mb-4 md:mb-6 bg-primary/5">
+            <h3 className="font-heading font-semibold text-base md:text-lg text-primary mb-2 md:mb-3">📋 Points clés à retenir</h3>
+            <ul className="space-y-1.5 md:space-y-2">
               {selectedChapter.points_cles.map((p, i) => (
-                <li key={i} className="flex items-start gap-2"><span className="text-primary mt-0.5">•</span> {p}</li>
+                <li key={i} className="flex items-start gap-2 text-sm md:text-base"><span className="text-primary mt-0.5">•</span> {p}</li>
               ))}
             </ul>
           </div>
@@ -439,9 +439,9 @@ export function CoursesPage() {
 
         {/* Conseil */}
         {selectedChapter.conseil_revision && (
-          <div className="glass-card p-6 mb-6 bg-accent/5 border-accent/20">
-            <h3 className="font-heading font-semibold text-lg text-accent mb-2">💡 Conseil de révision</h3>
-            <p className="text-muted-foreground">{selectedChapter.conseil_revision}</p>
+          <div className="glass-card p-3 md:p-6 mb-4 md:mb-6 bg-accent/5 border-accent/20">
+            <h3 className="font-heading font-semibold text-base md:text-lg text-accent mb-2">💡 Conseil de révision</h3>
+            <p className="text-sm md:text-base text-muted-foreground">{selectedChapter.conseil_revision}</p>
           </div>
         )}
 

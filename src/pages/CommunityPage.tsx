@@ -337,6 +337,20 @@ export function CommunityPage() {
     setReplyTo(msg);
   };
 
+  const renderMentionText = (text: string, isMe: boolean) => {
+    const parts = text.split(/(@\w+)/g);
+    return parts.map((part, i) => {
+      if (part.match(/^@\w+$/)) {
+        return (
+          <span key={i} className={`font-semibold ${isMe ? 'text-primary-foreground/90 underline' : 'text-primary'}`}>
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
   const formatTime = (dateStr: string) => new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
   const getReplyMsg = (id: string | null | undefined) => id ? messages.find(m => m.id === id) : null;

@@ -228,14 +228,27 @@ const defaultVideos: Video[] = [
   { id: '3', titre: "SQL pour débutants - Cours complet", description: "Apprenez SQL de zéro avec des exercices pratiques", youtubeUrl: 'https://www.youtube.com/watch?v=HXV3zeQKqGY', youtubeId: 'HXV3zeQKqGY', matiere: 'Base de Données', date: '2024-03-10' },
 ];
 
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return fallback;
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
-  const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects);
+  const [subjects, setSubjects] = useState<Subject[]>(() => loadFromStorage('app_subjects', defaultSubjects));
   const [messages, setMessages] = useState<CommunityMessage[]>(defaultMessages);
-  const [videos, setVideos] = useState<Video[]>(defaultVideos);
-  const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistory[]>([]);
+  const [videos, setVideos] = useState<Video[]>(() => loadFromStorage('app_videos', defaultVideos));
+  const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistory[]>(() => loadFromStorage('app_exercise_history', []));
   const [darkMode, setDarkMode] = useState(true);
   const [activeTab, setActiveTab] = useState('cours');
+
+  // Persist admin data to localStorage
+  useEffect(() => { localStorage.setItem('app_subjects', JSON.stringify(subjects)); }, [subjects]);
+  useEffect(() => { localStorage.setItem('app_videos', JSON.stringify(videos)); }, [videos]);
+  useEffect(() => { localStorage.setItem('app_exercise_history', JSON.stringify(exerciseHistory)); }, [exerciseHistory]);
 
   const login = useCallback((password: string) => {
     if (password === 'ZahGasy1') {

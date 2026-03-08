@@ -86,7 +86,7 @@ export function CommunityPage() {
           });
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as any;
-          setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated, reactions: (updated.reactions as Record<string, number>) || {} } : m));
+          setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated, reactions: (updated.reactions as Record<string, string[]>) || {} } : m));
         } else if (payload.eventType === 'DELETE') {
           const old = payload.old as any;
           if (old?.id) setMessages(prev => prev.filter(m => m.id !== old.id));

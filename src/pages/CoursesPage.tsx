@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useApp, Subject, Chapter } from '@/contexts/AppContext';
-import { ArrowLeft, Plus, Trash2, Search, ChevronRight, Upload, CheckCircle, RotateCcw, BookOpen } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Search, ChevronRight, Upload, CheckCircle, RotateCcw, BookOpen, FileUp, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const difficultyBadge = (d: string) => {
   if (d === 'Facile') return <span className="text-xs px-2 py-0.5 rounded-full bg-success/20 text-success">🟢 Facile</span>;
@@ -142,13 +144,145 @@ function CreateSubjectModal({ open, onClose, onCreate }: { open: boolean; onClos
   );
 }
 
+// File upload modal for importing courses from documents
+function ImportCourseModal({ open, onClose, subjectName, onImport }: { open: boolean; onClose: () => void; subjectName: string; onImport: (chapter: Chapter) => void }) {
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const extractTextFromFile = async (file: File): Promise<string> => {
+    const type = file.type;
+    
+    // Text-based files
+    if (type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+      return await file.text();
+    }
+
+    // For images, we'll send base64 to AI
+    if (type.startsWith('image/')) {
+      const buffer = await file.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      return `[IMAGE:${file.name}] Ce fichier est une image. Voici le contenu encodé en base64 pour extraction OCR: ${base64.substring(0, 5000)}... (L'IA devra extraire le texte de cette image)`;
+    }
+
+    // For PDF and Word: read as text (basic extraction)
+    // We'll read raw text content
+    const text = await file.text();
+    // Filter readable characters
+    const readable = text.replace(/[^\x20-\x7E\xA0-\xFF\u0100-\uFFFF\n\r\t]/g, ' ').replace(/\s{3,}/g, '\n');
+    if (readable.trim().length > 50) return readable;
+
+    // Fallback: try reading as array buffer and extracting text
+    return `Fichier: ${file.name}\nType: ${type}\nContenu non extractible directement. Veuillez utiliser un fichier texte ou une image.`;
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (file.size > maxSize) {
+      toast({ title: 'Fichier trop volumineux', description: 'Maximum 20 Mo autorisé.', variant: 'destructive' });
+      return;
+    }
+
+    setLoading(true);
+    setStatus('📄 Extraction du contenu...');
+
+    try {
+      const textContent = await extractTextFromFile(file);
+      
+      if (textContent.length < 50) {
+        toast({ title: 'Contenu insuffisant', description: 'Le fichier ne contient pas assez de texte exploitable.', variant: 'destructive' });
+        setLoading(false);
+        setStatus('');
+        return;
+      }
+
+      setStatus('🤖 Analyse par l\'IA en cours...');
+
+      const { data, error } = await supabase.functions.invoke('extract-course', {
+        body: { textContent, fileName: file.name, subjectName },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const chapter: Chapter = {
+        id: Date.now().toString(),
+        titre: data.titre || file.name.replace(/\.[^.]+$/, ''),
+        difficulte: data.difficulte || 'Moyen',
+        resume_intro: data.resume_intro || '',
+        sections: data.sections || [],
+        schemas_detectes: data.schemas_detectes || [],
+        points_cles: data.points_cles || [],
+        conseil_revision: data.conseil_revision || '',
+        published: false,
+      };
+
+      onImport(chapter);
+      toast({ title: '✅ Cours importé !', description: `"${chapter.titre}" a été créé avec succès. Vérifiez et publiez-le.` });
+      onClose();
+    } catch (err: any) {
+      console.error('Import error:', err);
+      toast({ title: 'Erreur d\'importation', description: err.message || 'Une erreur est survenue.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+      setStatus('');
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={loading ? undefined : onClose} />
+      <div className="relative glass-card p-6 max-w-md w-full mx-4 animate-scale-in">
+        <h2 className="font-heading font-bold text-xl mb-2">📤 Importer un cours</h2>
+        <p className="text-muted-foreground text-sm mb-6">
+          Uploadez un fichier (PDF, image, texte) et l'IA extraira et structurera automatiquement le contenu en cours.
+        </p>
+
+        {loading ? (
+          <div className="text-center py-8">
+            <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
+            <p className="text-sm font-medium text-foreground">{status}</p>
+            <p className="text-xs text-muted-foreground mt-2">Cela peut prendre quelques secondes...</p>
+          </div>
+        ) : (
+          <>
+            <label className="flex flex-col items-center justify-center w-full h-40 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 cursor-pointer transition-colors">
+              <FileUp className="w-10 h-10 text-primary/60 mb-3" />
+              <span className="text-sm font-medium text-foreground">Cliquez pour sélectionner un fichier</span>
+              <span className="text-xs text-muted-foreground mt-1">PDF, Image, TXT, Word (max 20 Mo)</span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.txt,.md,.doc,.docx,.png,.jpg,.jpeg,.webp"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+            </label>
+            <button onClick={onClose} className="w-full mt-4 py-2 rounded-lg bg-secondary text-foreground hover:bg-muted transition-colors text-sm">
+              Annuler
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function CoursesPage() {
   const { subjects, setSubjects, isAdmin, setActiveTab } = useApp();
+  const { toast } = useToast();
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [search, setSearch] = useState('');
   const [showCreateSubject, setShowCreateSubject] = useState(false);
   const [showCreateChapter, setShowCreateChapter] = useState(false);
+  const [showImportCourse, setShowImportCourse] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState('');
   const [readProgress, setReadProgress] = useState(0);
 
@@ -193,6 +327,13 @@ export function CoursesPage() {
     ));
     setNewChapterTitle('');
     setShowCreateChapter(false);
+  };
+
+  const handleImportChapter = (chapter: Chapter) => {
+    if (!selectedSubject) return;
+    setSubjects(prev => prev.map(s =>
+      s.id === selectedSubject.id ? { ...s, chapitres: [...s.chapitres, chapter] } : s
+    ));
   };
 
   const handleDeleteChapter = (chapterId: string) => {
@@ -328,7 +469,10 @@ export function CoursesPage() {
             <h1 className="font-heading font-bold text-2xl">{currentSubject.nom}</h1>
           </div>
           {isAdmin && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={() => setShowImportCourse(true)} className="px-4 py-2 rounded-lg bg-accent/20 text-accent text-sm font-medium hover:bg-accent/30 transition-colors flex items-center gap-2">
+                <FileUp size={16} /> Importer (PDF/Image)
+              </button>
               <button onClick={() => setShowCreateChapter(true)} className="px-4 py-2 rounded-lg gradient-bg text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
                 <Plus size={16} /> Nouveau Chapitre
               </button>
@@ -394,6 +538,15 @@ export function CoursesPage() {
         <button onClick={() => setSelectedSubject(null)} className="flex items-center gap-2 mt-6 text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft size={18} /> Retour aux matières
         </button>
+
+        {showImportCourse && selectedSubject && (
+          <ImportCourseModal
+            open={showImportCourse}
+            onClose={() => setShowImportCourse(false)}
+            subjectName={currentSubject.nom}
+            onImport={handleImportChapter}
+          />
+        )}
       </div>
     );
   }

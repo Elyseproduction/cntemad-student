@@ -11,7 +11,7 @@ import { VideoPage } from "@/pages/VideoPage";
 import { useAuth } from "@/hooks/useAuth";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { InstallBanner } from "@/components/InstallBanner";
-import { useAutoUpdate } from "@/hooks/useAutoUpdate";
+import { UpdateBanner } from "@/components/UpdateBanner";
 
 const queryClient = new QueryClient();
 
@@ -50,23 +50,20 @@ function AppContent() {
   );
 }
 
-const App = () => {
-  useAutoUpdate();
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AppProvider>
-          <AuthGate>
-            <AppContent />
-          </AuthGate>
-          <InstallBanner />
-        </AppProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-};
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <UpdateBanner />
+      <AppProvider>
+        <AuthGate>
+          <AppContent />
+        </AuthGate>
+        <InstallBanner />
+      </AppProvider>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
 
 export default App;

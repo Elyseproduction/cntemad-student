@@ -65,9 +65,24 @@ export function CommunityPage() {
   useEffect(() => {
     fetchMessages();
     const msgChannel = supabase
-      .channel('community_messages_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, () => {
-        fetchMessages();
+      .channel('community_messages_realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'community_messages' }, (payload) => {
+        const newMsg = payload.new as any;
+        setMessages(prev => {
+          // Avoid duplicates (from optimistic update)
+          const exists = prev.some(m => m.id === newMsg.id);
+          // Remove temp messages from same user if this is their real message
+          const filtered = prev.filter(m => !(m.id.startsWith('temp-') && m.auteur === newMsg.auteur && m.contenu === newMsg.contenu));
+          if (exists) return prev;
+          return [...filtered, {
+            ...newMsg,
+            reactions: (newMsg.reactions as Record<string, number>) || {},
+          }];
+        });
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'community_messages' }, (payload) => {
+        const updated = payload.new as any;
+        setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated, reactions: (updated.reactions as Record<string, number>) || {} } : m));
       })
       .subscribe();
 
@@ -210,7 +225,7 @@ export function CommunityPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)] flex flex-col animate-fade-in overflow-hidden">
+    <div className="max-w-3xl mx-auto h-[calc(100vh-10rem)] md:h-[calc(100vh-8rem)] flex flex-col animate-fade-in overflow-hidden px-1">
       <div className="flex items-center justify-between mb-4">
         <h1 className="font-heading font-bold text-2xl">💬 Communauté</h1>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -330,7 +345,7 @@ export function CommunityPage() {
       )}
 
       {/* Input */}
-      <div className="flex items-center gap-2 pt-3 border-t border-border shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 pt-3 pb-1 border-t border-border shrink-0">
         <input
           ref={fileInputRef}
           type="file"
@@ -338,21 +353,23 @@ export function CommunityPage() {
           onChange={handleFileUpload}
           className="hidden"
         />
-        <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-          <Smile size={20} />
-        </button>
-        <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
-          <Image size={20} />
-        </button>
+        <div className="flex items-center shrink-0">
+          <button onClick={() => setShowEmoji(!showEmoji)} className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <Smile size={18} />
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
+            <Image size={18} />
+          </button>
+        </div>
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && sendMessage()}
-          placeholder="Écrire un message..."
-          className="flex-1 px-4 py-3 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground"
+          placeholder="Message..."
+          className="flex-1 min-w-0 px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground text-sm"
         />
-        <button onClick={sendMessage} disabled={!input.trim()} className="p-3 rounded-xl gradient-bg text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50">
-          <Send size={18} />
+        <button onClick={sendMessage} disabled={!input.trim()} className="p-2.5 sm:p-3 rounded-xl gradient-bg text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0">
+          <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
         </button>
       </div>
 

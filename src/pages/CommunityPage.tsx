@@ -487,24 +487,24 @@ export function CommunityPage() {
 
       {/* Input */}
       <div className="flex items-center gap-1.5 sm:gap-2 pt-3 pb-1 border-t border-border shrink-0">
-        <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleFileUpload} className="hidden" />
+        <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
         <div className="flex items-center shrink-0">
-          <button onClick={() => setShowEmoji(!showEmoji)} className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-            <Smile size={18} />
+          <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <Smile size={20} />
           </button>
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
-            <Image size={18} />
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
+            <Paperclip size={20} />
           </button>
         </div>
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && sendMessage()}
-          placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Message...'}
-          className="flex-1 min-w-0 px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground text-sm"
+          placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Aa'}
+          className="flex-1 min-w-0 px-4 py-2 rounded-full bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm"
         />
-        <button onClick={sendMessage} disabled={!input.trim()} className="p-2.5 sm:p-3 rounded-xl gradient-bg text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0">
-          <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
+        <button onClick={sendMessage} disabled={!input.trim()} className="p-2 rounded-full text-primary hover:bg-secondary transition-colors disabled:opacity-30 shrink-0">
+          <Send size={20} />
         </button>
       </div>
 

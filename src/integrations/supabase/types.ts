@@ -14,7 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      community_messages: {
+        Row: {
+          auteur: string
+          avatar: string
+          contenu: string
+          couleur: string
+          created_at: string
+          id: string
+          image_url: string | null
+          reactions: Json
+          type: string
+        }
+        Insert: {
+          auteur: string
+          avatar: string
+          contenu: string
+          couleur: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          reactions?: Json
+          type?: string
+        }
+        Update: {
+          auteur?: string
+          avatar?: string
+          contenu?: string
+          couleur?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          reactions?: Json
+          type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

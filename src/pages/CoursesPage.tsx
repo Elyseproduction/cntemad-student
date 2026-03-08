@@ -35,69 +35,71 @@ function SectionRenderer({ section }: { section: Chapter['sections'][0] }) {
   switch (section.type) {
     case 'h1':
       return (
-        <div className="mt-8 mb-4">
+        <div className="mt-6 md:mt-8 mb-3 md:mb-4">
           <h2 className="section-h1 pb-2 border-b border-primary/30">{section.titre}</h2>
-          <p className="mt-3 leading-relaxed whitespace-pre-wrap">{renderContent(section.contenu, section.mots_cles)}</p>
+          <p className="mt-2 md:mt-3 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'h2':
       return (
-        <div className="mt-6 mb-3">
+        <div className="mt-4 md:mt-6 mb-2 md:mb-3">
           <h3 className="section-h2">{section.titre}</h3>
-          <p className="mt-2 leading-relaxed whitespace-pre-wrap">{renderContent(section.contenu, section.mots_cles)}</p>
+          <p className="mt-1.5 md:mt-2 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'h3':
       return (
-        <div className="mt-4 mb-2">
+        <div className="mt-3 md:mt-4 mb-1.5 md:mb-2">
           <h4 className="section-h3">{section.titre}</h4>
-          <p className="mt-1 leading-relaxed whitespace-pre-wrap">{renderContent(section.contenu, section.mots_cles)}</p>
+          <p className="mt-1 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'definition':
       return (
-        <div className="my-4 p-4 rounded-xl border-l-4 border-accent bg-accent/10">
-          <p className="font-semibold text-accent mb-1">📌 {section.titre}</p>
-          <p className="leading-relaxed">{renderContent(section.contenu, section.mots_cles)}</p>
+        <div className="my-3 md:my-4 p-3 md:p-4 rounded-xl border-l-4 border-accent bg-accent/10">
+          <p className="font-semibold text-accent mb-1 text-sm md:text-base">📌 {section.titre}</p>
+          <p className="text-sm md:text-base leading-relaxed break-words">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'retenir':
       return (
-        <div className="my-4 p-4 rounded-xl bg-primary/10 border border-primary/20">
-          <p className="font-semibold text-primary mb-1">💡 {section.titre}</p>
-          <p className="leading-relaxed">{renderContent(section.contenu, section.mots_cles)}</p>
+        <div className="my-3 md:my-4 p-3 md:p-4 rounded-xl bg-primary/10 border border-primary/20">
+          <p className="font-semibold text-primary mb-1 text-sm md:text-base">💡 {section.titre}</p>
+          <p className="text-sm md:text-base leading-relaxed break-words">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'attention':
       return (
-        <div className="my-4 p-4 rounded-xl bg-warning/10 border border-warning/20">
-          <p className="font-semibold text-warning mb-1">⚠️ {section.titre}</p>
-          <p className="leading-relaxed">{renderContent(section.contenu, section.mots_cles)}</p>
+        <div className="my-3 md:my-4 p-3 md:p-4 rounded-xl bg-warning/10 border border-warning/20">
+          <p className="font-semibold text-warning mb-1 text-sm md:text-base">⚠️ {section.titre}</p>
+          <p className="text-sm md:text-base leading-relaxed break-words">{renderContent(section.contenu, section.mots_cles)}</p>
         </div>
       );
     case 'code':
       return (
-        <div className="my-4">
-          <p className="text-sm text-muted-foreground mb-1">{section.titre}</p>
-          <pre className="p-4 rounded-xl bg-muted/50 border border-border overflow-x-auto font-mono text-sm leading-relaxed">
-            <code>{section.contenu}</code>
-          </pre>
+        <div className="my-3 md:my-4">
+          <p className="text-xs md:text-sm text-muted-foreground mb-1">{section.titre}</p>
+          <div className="rounded-xl bg-muted/50 border border-border overflow-x-auto -mx-1 md:mx-0">
+            <pre className="p-3 md:p-4 font-mono text-xs md:text-sm leading-relaxed min-w-0">
+              <code className="break-all md:break-normal">{section.contenu}</code>
+            </pre>
+          </div>
         </div>
       );
     case 'tableau':
       return (
-        <div className="my-4">
-          <p className="font-semibold mb-2">{section.titre}</p>
-          <div className="p-4 rounded-xl bg-muted/30 border border-border overflow-x-auto">
-            <pre className="font-mono text-sm">{section.contenu}</pre>
+        <div className="my-3 md:my-4">
+          <p className="font-semibold mb-2 text-sm md:text-base">{section.titre}</p>
+          <div className="rounded-xl bg-muted/30 border border-border overflow-x-auto -mx-1 md:mx-0">
+            <pre className="p-3 md:p-4 font-mono text-xs md:text-sm min-w-0">{section.contenu}</pre>
           </div>
         </div>
       );
     case 'schema':
       return (
-        <div className="my-4 p-4 rounded-xl bg-muted/30 border border-dashed border-primary/30">
-          <p className="font-semibold text-primary mb-2">🔷 {section.titre}</p>
-          <pre className="font-mono text-sm leading-relaxed">{section.contenu}</pre>
+        <div className="my-3 md:my-4 p-3 md:p-4 rounded-xl bg-muted/30 border border-dashed border-primary/30 overflow-x-auto">
+          <p className="font-semibold text-primary mb-2 text-sm md:text-base">🔷 {section.titre}</p>
+          <pre className="font-mono text-xs md:text-sm leading-relaxed min-w-0">{section.contenu}</pre>
         </div>
       );
     default:
@@ -373,38 +375,38 @@ export function CoursesPage() {
         </div>
 
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap">
+        <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground mb-4 md:mb-6 flex-wrap">
           <button onClick={() => { setSelectedSubject(null); setSelectedChapter(null); }} className="hover:text-foreground transition-colors">Accueil</button>
-          <ChevronRight size={14} />
-          <button onClick={() => setSelectedChapter(null)} className="hover:text-foreground transition-colors">{selectedSubject.nom}</button>
-          <ChevronRight size={14} />
-          <span className="text-foreground">{selectedChapter.titre}</span>
+          <ChevronRight size={12} className="md:w-3.5 md:h-3.5" />
+          <button onClick={() => setSelectedChapter(null)} className="hover:text-foreground transition-colors truncate max-w-[120px] md:max-w-none">{selectedSubject.nom}</button>
+          <ChevronRight size={12} className="md:w-3.5 md:h-3.5" />
+          <span className="text-foreground truncate max-w-[150px] md:max-w-none">{selectedChapter.titre}</span>
         </div>
 
         {/* Header */}
-        <div className="glass-card p-6 mb-6">
-          <div className="flex items-start justify-between flex-wrap gap-4">
+        <div className="glass-card p-4 md:p-6 mb-4 md:mb-6">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
             <div>
               <h1 className="section-h1 mb-2">{selectedChapter.titre}</h1>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 md:gap-3 flex-wrap">
                 {difficultyBadge(selectedChapter.difficulte)}
                 {selectedChapter.learned && <span className="text-xs px-2 py-0.5 rounded-full bg-success/20 text-success">✅ Appris</span>}
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <button onClick={handleMarkLearned} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedChapter.learned ? 'bg-success/20 text-success' : 'bg-secondary text-foreground hover:bg-muted'}`}>
-                <CheckCircle size={16} className="inline mr-1" /> {selectedChapter.learned ? 'Appris ✅' : 'Marquer comme appris'}
+              <button onClick={handleMarkLearned} className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all flex-1 md:flex-none ${selectedChapter.learned ? 'bg-success/20 text-success' : 'bg-secondary text-foreground hover:bg-muted'}`}>
+                <CheckCircle size={14} className="inline mr-1" /> {selectedChapter.learned ? 'Appris ✅' : 'Appris'}
               </button>
-              <button onClick={() => setActiveTab('exercices')} className="px-4 py-2 rounded-lg gradient-bg text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
-                🧠 Générer des exercices
+              <button onClick={() => setActiveTab('exercices')} className="px-3 md:px-4 py-2 rounded-lg gradient-bg text-primary-foreground text-xs md:text-sm font-medium hover:opacity-90 transition-opacity flex-1 md:flex-none">
+                🧠 Exercices
               </button>
             </div>
           </div>
-          {selectedChapter.resume_intro && <p className="mt-4 text-muted-foreground leading-relaxed">{selectedChapter.resume_intro}</p>}
+          {selectedChapter.resume_intro && <p className="mt-3 md:mt-4 text-sm md:text-base text-muted-foreground leading-relaxed">{selectedChapter.resume_intro}</p>}
         </div>
 
         {/* Sections */}
-        <div className="glass-card p-6 mb-6">
+        <div className="glass-card p-3 md:p-6 mb-4 md:mb-6 overflow-hidden">
           {selectedChapter.sections.map((section, i) => (
             <SectionRenderer key={i} section={section} />
           ))}
@@ -425,11 +427,11 @@ export function CoursesPage() {
 
         {/* Points clés */}
         {selectedChapter.points_cles.length > 0 && (
-          <div className="glass-card p-6 mb-6 bg-primary/5">
-            <h3 className="font-heading font-semibold text-lg text-primary mb-3">📋 Points clés à retenir</h3>
-            <ul className="space-y-2">
+          <div className="glass-card p-3 md:p-6 mb-4 md:mb-6 bg-primary/5">
+            <h3 className="font-heading font-semibold text-base md:text-lg text-primary mb-2 md:mb-3">📋 Points clés à retenir</h3>
+            <ul className="space-y-1.5 md:space-y-2">
               {selectedChapter.points_cles.map((p, i) => (
-                <li key={i} className="flex items-start gap-2"><span className="text-primary mt-0.5">•</span> {p}</li>
+                <li key={i} className="flex items-start gap-2 text-sm md:text-base"><span className="text-primary mt-0.5">•</span> {p}</li>
               ))}
             </ul>
           </div>
@@ -437,9 +439,9 @@ export function CoursesPage() {
 
         {/* Conseil */}
         {selectedChapter.conseil_revision && (
-          <div className="glass-card p-6 mb-6 bg-accent/5 border-accent/20">
-            <h3 className="font-heading font-semibold text-lg text-accent mb-2">💡 Conseil de révision</h3>
-            <p className="text-muted-foreground">{selectedChapter.conseil_revision}</p>
+          <div className="glass-card p-3 md:p-6 mb-4 md:mb-6 bg-accent/5 border-accent/20">
+            <h3 className="font-heading font-semibold text-base md:text-lg text-accent mb-2">💡 Conseil de révision</h3>
+            <p className="text-sm md:text-base text-muted-foreground">{selectedChapter.conseil_revision}</p>
           </div>
         )}
 

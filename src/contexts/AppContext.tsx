@@ -264,7 +264,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistory[]>([]);
   const [darkMode, setDarkMode] = useState(true);
   const [activeTab, setActiveTab] = useState('cours');
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const initialLoadDone = useRef(false);
+  const isAdminRef = useRef(isAdmin);
+  isAdminRef.current = isAdmin;
+
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
 
   // Load subjects & videos from database on mount
   useEffect(() => {
@@ -278,6 +285,108 @@ export function AppProvider({ children }: { children: ReactNode }) {
       initialLoadDone.current = true;
     }
     load();
+  }, []);
+
+  // Realtime subscription: detect admin changes from other clients
+  useEffect(() => {
+    const channel = supabase
+      .channel('app_config_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'app_config' },
+        async (payload) => {
+          // Don't notify if this client is the admin making changes
+          if (isAdminRef.current) return;
+
+          const record = payload.new as { key: string; value: any } | undefined;
+          if (!record) return;
+
+          if (record.key === 'subjects' && Array.isArray(record.value)) {
+            const oldSubjects = subjectsRef.current;
+            const newSubjects = record.value as Subject[];
+            setSubjects(newSubjects);
+            subjectsRef.current = newSubjects;
+
+            // Detect changes
+            const oldIds = new Set(oldSubjects.flatMap(s => s.chapitres.filter(c => c.published).map(c => c.id)));
+            const newIds = new Set(newSubjects.flatMap(s => s.chapitres.filter(c => c.published).map(c => c.id)));
+            const oldSubjectIds = new Set(oldSubjects.map(s => s.id));
+            const newSubjectIds = new Set(newSubjects.map(s => s.id));
+
+            // New subjects
+            for (const s of newSubjects) {
+              if (!oldSubjectIds.has(s.id)) {
+                setNotifications(prev => [...prev, {
+                  id: `subject-${s.id}-${Date.now()}`,
+                  message: `📚 Nouvelle matière ajoutée : ${s.nom}`,
+                  tab: 'cours',
+                  timestamp: Date.now(),
+                }]);
+              }
+            }
+            // Deleted subjects
+            for (const s of oldSubjects) {
+              if (!newSubjectIds.has(s.id)) {
+                setNotifications(prev => [...prev, {
+                  id: `subject-del-${s.id}-${Date.now()}`,
+                  message: `🗑️ Matière supprimée : ${s.nom}`,
+                  tab: 'cours',
+                  timestamp: Date.now(),
+                }]);
+              }
+            }
+            // New chapters
+            for (const s of newSubjects) {
+              for (const c of s.chapitres) {
+                if (c.published && !oldIds.has(c.id)) {
+                  setNotifications(prev => [...prev, {
+                    id: `chapter-${c.id}-${Date.now()}`,
+                    message: `📖 Nouveau cours publié : ${c.titre} (${s.nom})`,
+                    tab: 'cours',
+                    timestamp: Date.now(),
+                  }]);
+                }
+              }
+            }
+          }
+
+          if (record.key === 'videos' && Array.isArray(record.value)) {
+            const oldVideos = videosRef.current;
+            const newVideos = record.value as Video[];
+            setVideos(newVideos);
+            videosRef.current = newVideos;
+
+            const oldVideoIds = new Set(oldVideos.map(v => v.id));
+            const newVideoIds = new Set(newVideos.map(v => v.id));
+
+            for (const v of newVideos) {
+              if (!oldVideoIds.has(v.id)) {
+                setNotifications(prev => [...prev, {
+                  id: `video-${v.id}-${Date.now()}`,
+                  message: `🎬 Nouvelle vidéo ajoutée : ${v.titre}`,
+                  tab: 'videos',
+                  timestamp: Date.now(),
+                }]);
+              }
+            }
+            for (const v of oldVideos) {
+              if (!newVideoIds.has(v.id)) {
+                setNotifications(prev => [...prev, {
+                  id: `video-del-${v.id}-${Date.now()}`,
+                  message: `🗑️ Vidéo supprimée : ${v.titre}`,
+                  tab: 'videos',
+                  timestamp: Date.now(),
+                }]);
+              }
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Save subjects to DB when changed (skip initial load)
@@ -340,6 +449,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       exerciseHistory, addExerciseHistory,
       darkMode, toggleDarkMode,
       activeTab, setActiveTab,
+      notifications, dismissNotification,
     }}>
       {children}
     </AppContext.Provider>

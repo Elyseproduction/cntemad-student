@@ -82,7 +82,7 @@ export function CommunityPage() {
             const exists = prev.some(m => m.id === newMsg.id);
             const filtered = prev.filter(m => !(m.id.startsWith('temp-') && m.auteur === newMsg.auteur && m.contenu === newMsg.contenu));
             if (exists) return prev;
-            return [...filtered, { ...newMsg, reactions: (newMsg.reactions as Record<string, number>) || {} }];
+            return [...filtered, { ...newMsg, reactions: (newMsg.reactions as Record<string, string[]>) || {} }];
           });
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as any;

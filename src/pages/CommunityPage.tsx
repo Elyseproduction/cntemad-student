@@ -305,7 +305,7 @@ export function CommunityPage() {
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-2">
+      <div ref={scrollRef} className="flex-1 space-y-3 pr-2" style={{ overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <p className="text-lg">Aucun message pour le moment</p>

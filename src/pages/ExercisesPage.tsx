@@ -48,19 +48,23 @@ export function ExercisesPage() {
     return subject?.chapitres.filter(c => c.published) || [];
   }, [subjects, selectedSubject]);
 
+  const [loadingStep, setLoadingStep] = useState('');
+
   const handleGenerate = async () => {
     const chapter = chapters.find(c => c.id === selectedChapter);
     const subject = subjects.find(s => s.id === selectedSubject);
     if (!chapter || !subject) return;
 
     setLoading(true);
+    setLoadingStep('Analyse du chapitre en cours...');
 
-    // Build chapter content from sections
     const chapterContent = chapter.sections
       .map(s => `[${s.type}] ${s.titre}: ${s.contenu}`)
       .join('\n\n');
 
     try {
+      setLoadingStep('🤖 L\'IA génère vos exercices...');
+      
       const { data, error } = await supabase.functions.invoke('generate-exercises', {
         body: {
           chapterTitle: chapter.titre,
@@ -73,10 +77,13 @@ export function ExercisesPage() {
       if (error) throw error;
 
       if (data?.error) {
-        toast({ title: 'Erreur', description: data.error, variant: 'destructive' });
+        toast({ title: 'Erreur IA', description: data.error, variant: 'destructive' });
         setLoading(false);
+        setLoadingStep('');
         return;
       }
+
+      setLoadingStep('Préparation du quiz...');
 
       const generated: Exercise[] = (data?.exercices || []).map((ex: any, i: number) => ({
         ...ex,
@@ -87,6 +94,7 @@ export function ExercisesPage() {
       if (generated.length === 0) {
         toast({ title: 'Erreur', description: "L'IA n'a pas pu générer d'exercices. Réessayez.", variant: 'destructive' });
         setLoading(false);
+        setLoadingStep('');
         return;
       }
 
@@ -102,6 +110,7 @@ export function ExercisesPage() {
       toast({ title: 'Erreur', description: e.message || "Impossible de générer les exercices", variant: 'destructive' });
     } finally {
       setLoading(false);
+      setLoadingStep('');
     }
   };
 
@@ -231,7 +240,7 @@ export function ExercisesPage() {
         </div>
 
         {/* Question Card */}
-        <div className={`glass-card p-6 md:p-8 mb-6 transition-all ${answered ? (isCorrect ? 'border-success/50 animate-pulse-glow' : 'border-destructive/50 animate-shake') : ''}`}>
+        <div className={`glass-card p-6 md:p-8 mb-6 transition-all duration-300 ${answered ? (isCorrect ? 'border-success/50 shadow-success/20 shadow-lg' : 'border-destructive/50 shadow-destructive/20 shadow-lg animate-shake') : 'card-shine'}`}>
           <p className="text-lg md:text-xl font-medium leading-relaxed mb-6">{exercise.enonce}</p>
 
           {/* QCM */}
@@ -375,7 +384,15 @@ export function ExercisesPage() {
 
         <button onClick={handleGenerate} disabled={!selectedSubject || !selectedChapter || loading} className="w-full py-4 rounded-xl gradient-bg text-primary-foreground font-semibold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
           {loading ? (
-            <><span className="animate-spin">🤖</span> L'IA analyse le chapitre et prépare vos exercices...</>
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full" />
+                <span>{loadingStep}</span>
+              </div>
+              <div className="w-48 h-1.5 rounded-full bg-primary-foreground/20 overflow-hidden">
+                <div className="h-full bg-primary-foreground/60 rounded-full animate-pulse" style={{ width: '60%' }} />
+              </div>
+            </div>
           ) : (
             <><Sparkles size={20} /> Générer les exercices</>
           )}

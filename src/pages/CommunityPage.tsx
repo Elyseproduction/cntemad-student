@@ -28,6 +28,7 @@ const reactionEmojis = ['👍', '❤️', '😂', '🔥'];
 const emojiPicker = ['😀', '😂', '😍', '🤔', '👍', '👏', '🎉', '🔥', '❤️', '💪', '📚', '🧠', '💡', '⚡', '🎯', '✅'];
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
+const MAX_TEXTAREA_HEIGHT = 120; // 120px = environ 4-5 lignes
 
 export function CommunityPage() {
   const { toast } = useToast();
@@ -48,6 +49,9 @@ export function CommunityPage() {
   const [showMentions, setShowMentions] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
   const [mentionIndex, setMentionIndex] = useState(0);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [savedScrollPosition, setSavedScrollPosition] = useState(0);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -66,6 +70,27 @@ export function CommunityPage() {
 
   const { startTyping, stopTyping } = useTyping();
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Détection de l'ouverture/fermeture du clavier sur mobile
+  useEffect(() => {
+    const handleResize = () => {
+      const isKeyboard = window.innerHeight < window.outerHeight * 0.8;
+      setKeyboardVisible(isKeyboard);
+      
+      if (isKeyboard && scrollRef.current) {
+        setSavedScrollPosition(scrollRef.current.scrollTop);
+      } else if (!isKeyboard && savedScrollPosition > 0) {
+        setTimeout(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = savedScrollPosition;
+          }
+        }, 100);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [savedScrollPosition]);
 
   const fetchMessages = useCallback(async () => {
     const { data, error } = await supabase
@@ -163,8 +188,29 @@ export function CommunityPage() {
     const val = e.target.value;
     setInput(val);
 
+    // Auto-resize avec limite
     e.target.style.height = 'auto';
-    e.target.style.height = e.target.scrollHeight + 'px';
+    const newHeight = Math.min(e.target.scrollHeight, MAX_TEXTAREA_HEIGHT);
+    e.target.style.height = newHeight + 'px';
+    
+    // Gestion du scroll interne si on dépasse la limite
+    if (e.target.scrollHeight > MAX_TEXTAREA_HEIGHT) {
+      e.target.style.overflowY = 'auto';
+    } else {
+      e.target.style.overflowY = 'hidden';
+    }
+
+    // Scroll automatique des messages quand on dépasse
+    if (scrollRef.current && e.target.scrollHeight > MAX_TEXTAREA_HEIGHT) {
+      const isNearBottom = scrollRef.current.scrollHeight - scrollRef.current.scrollTop - scrollRef.current.clientHeight < 50;
+      if (isNearBottom) {
+        setTimeout(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          }
+        }, 10);
+      }
+    }
 
     startTyping();
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -172,6 +218,7 @@ export function CommunityPage() {
       stopTyping();
     }, 2000);
 
+    // Détection des mentions
     const cursorPos = e.target.selectionStart || val.length;
     const textBeforeCursor = val.slice(0, cursorPos);
     const atMatch = textBeforeCursor.match(/@(\w*)$/);
@@ -219,19 +266,16 @@ export function CommunityPage() {
       }
     }
     
-    // Règle intelligente :
-    // - Sur mobile : Entrée = saut de ligne (toujours)
-    // - Sur PC : Shift+Entrée = saut de ligne, Entrée seul = rien
+    // Gestion intelligente de la touche Entrée
     if (e.key === 'Enter') {
       if (isMobile) {
-        // Sur mobile, Entrée = saut de ligne (on laisse le comportement par défaut)
+        // Sur mobile, Entrée = saut de ligne
         return;
       } else {
         // Sur PC, Entrée seul = rien, Shift+Entrée = saut de ligne
         if (!e.shiftKey) {
           e.preventDefault();
         }
-        // Si Shift+Entrée, on laisse le comportement par défaut (saut de ligne)
       }
     }
   };
@@ -487,6 +531,7 @@ export function CommunityPage() {
         </div>
       </div>
 
+      {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-2 touch-pan-y overscroll-contain">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
@@ -503,6 +548,7 @@ export function CommunityPage() {
           return (
             <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in group/msg`}>
               <div className={`max-w-[80%] ${isMe ? 'order-2' : ''} relative`}>
+                {/* Author info */}
                 <div className="flex items-center gap-2 mb-1">
                   {!isMe && (
                     msg.avatar?.startsWith('http') ? (
@@ -529,6 +575,7 @@ export function CommunityPage() {
                     {msg.is_edited && !isDeleted && <span className="ml-1 italic">(modifié)</span>}
                   </span>
 
+                  {/* Views indicator */}
                   {viewers.length > 0 && (
                     <div className="flex items-center gap-1 ml-2">
                       <Eye size={12} className="text-muted-foreground" />
@@ -550,6 +597,7 @@ export function CommunityPage() {
                     </div>
                   )}
 
+                  {/* Context menu button */}
                   {!isDeleted && !msg.id.startsWith('temp-') && (
                     <div className="relative">
                       <button
@@ -585,6 +633,7 @@ export function CommunityPage() {
                   )}
                 </div>
 
+                {/* Reply preview */}
                 {replyMsg && (
                   <div className="mb-1 pl-3 border-l-2 border-primary/50 text-xs text-muted-foreground truncate max-w-full">
                     <span className="font-medium text-foreground">{replyMsg.auteur}</span>: {replyMsg.is_deleted ? 'Message supprimé' : replyMsg.contenu}
@@ -592,6 +641,7 @@ export function CommunityPage() {
                 )}
 
                 <div className={`rounded-2xl overflow-hidden ${isMe ? 'rounded-br-md' : 'rounded-bl-md'}`}>
+                  {/* Deleted message */}
                   {isDeleted ? (
                     <div className="p-3 bg-muted/50 italic text-muted-foreground text-sm">
                       {isMe ? '🗑️ Vous avez supprimé ce message' : msg.contenu}
@@ -656,6 +706,7 @@ export function CommunityPage() {
                   )}
                 </div>
 
+                {/* Reactions */}
                 {!isDeleted && (
                   <div className="flex items-center gap-1 mt-1 flex-wrap">
                     {Object.entries(msg.reactions).filter(([, users]) => Array.isArray(users) && users.length > 0).map(([emoji, users]) => {
@@ -682,8 +733,10 @@ export function CommunityPage() {
         })}
       </div>
 
+      {/* Typing indicator */}
       <TypingIndicator />
 
+      {/* Emoji picker */}
       {showEmoji && (
         <div className="glass-card p-3 mb-2 animate-scale-in">
           <div className="flex flex-wrap gap-2">
@@ -703,6 +756,7 @@ export function CommunityPage() {
         </div>
       )}
 
+      {/* Mention dropdown */}
       {showMentions && filteredMentionUsers.length > 0 && (
         <div className="bg-popover border border-border rounded-xl shadow-lg py-1 mb-1 max-h-40 overflow-y-auto animate-fade-in">
           <div className="px-3 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Mentionner un utilisateur</div>
@@ -727,6 +781,7 @@ export function CommunityPage() {
         </div>
       )}
 
+      {/* Reply banner */}
       {replyTo && (
         <div className="flex items-center gap-2 px-3 py-2 bg-secondary/80 rounded-t-xl border-l-2 border-primary text-sm animate-fade-in">
           <Reply size={14} className="text-primary shrink-0" />
@@ -739,7 +794,10 @@ export function CommunityPage() {
         </div>
       )}
 
-      <div className="sticky bottom-0 flex items-end gap-2 py-2 border-t border-border bg-background z-10 md:pb-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))]" style={{ flexShrink: 0 }}>
+      {/* Input */}
+      <div className={`sticky bottom-0 flex items-end gap-2 py-2 border-t border-border bg-background z-10 transition-all duration-300 ${
+        keyboardVisible ? 'pb-2' : 'pb-[calc(3.5rem+env(safe-area-inset-bottom))]'
+      }`} style={{ flexShrink: 0 }}>
         <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
         <div className="flex items-center shrink-0">
           <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
@@ -750,15 +808,33 @@ export function CommunityPage() {
           </button>
           <VoiceRecorder onSend={handleVoiceMessage} />
         </div>
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={handleInputChange}
-          onKeyDown={handleInputKeyDown}
-          placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
-          className="flex-1 min-w-0 px-4 py-2 rounded-xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm resize-none"
-          rows={1}
-        />
+        <div className="flex-1 relative">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleInputKeyDown}
+            onFocus={() => {
+              if (isMobile && scrollRef.current) {
+                setTimeout(() => {
+                  if (scrollRef.current) {
+                    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                  }
+                }, 300);
+              }
+            }}
+            placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
+            className="w-full px-4 py-2 rounded-xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm resize-none overflow-y-auto"
+            rows={1}
+            style={{ 
+              maxHeight: MAX_TEXTAREA_HEIGHT + 'px',
+              height: 'auto'
+            }}
+          />
+          {input.length > 0 && textareaRef.current?.scrollHeight > MAX_TEXTAREA_HEIGHT && (
+            <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-secondary/50 to-transparent pointer-events-none" />
+          )}
+        </div>
         <button 
           onClick={sendMessage} 
           disabled={!input.trim()} 
@@ -769,6 +845,7 @@ export function CommunityPage() {
         </button>
       </div>
 
+      {/* Fullscreen preview */}
       {previewFile && (
         <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPreviewFile(null)}>
           <button onClick={() => setPreviewFile(null)} className="absolute top-4 right-4 p-2 rounded-full bg-secondary hover:bg-muted transition-colors z-10"><X size={24} /></button>

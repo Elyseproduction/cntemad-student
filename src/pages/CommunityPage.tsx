@@ -51,11 +51,11 @@ export function CommunityPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
   const userAvatar = profile?.avatar_url || '';
   const userColor = '#6C63FF';
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const { startTyping, stopTyping } = useTyping();
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
@@ -74,7 +74,6 @@ export function CommunityPage() {
     setLoading(false);
   }, []);
 
-  // Fetch all registered users for mentions
   useEffect(() => {
     const fetchProfiles = async () => {
       const { data } = await supabase
@@ -157,18 +156,15 @@ export function CommunityPage() {
     const val = e.target.value;
     setInput(val);
 
-    // Auto-resize
     e.target.style.height = 'auto';
     e.target.style.height = e.target.scrollHeight + 'px';
 
-    // Typing indicator
     startTyping();
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       stopTyping();
     }, 2000);
 
-    // Mention detection
     const cursorPos = e.target.selectionStart || val.length;
     const textBeforeCursor = val.slice(0, cursorPos);
     const atMatch = textBeforeCursor.match(/@(\w*)$/);
@@ -216,7 +212,6 @@ export function CommunityPage() {
       }
     }
     
-    // Bloquer l'envoi par Entrée
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
     }
@@ -240,7 +235,6 @@ export function CommunityPage() {
     setShowEmoji(false);
     setShowMentions(false);
     
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -280,7 +274,6 @@ export function CommunityPage() {
   const handleVoiceMessage = async (audioBlob: Blob) => {
     setUploading(true);
     
-    // Upload audio file
     const fileName = `voice-${Date.now()}.webm`;
     const { error: uploadError } = await supabase.storage
       .from('community-media')
@@ -475,7 +468,6 @@ export function CommunityPage() {
         </div>
       </div>
 
-      {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-2 touch-pan-y overscroll-contain">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
@@ -492,7 +484,6 @@ export function CommunityPage() {
           return (
             <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in group/msg`}>
               <div className={`max-w-[80%] ${isMe ? 'order-2' : ''} relative`}>
-                {/* Author info */}
                 <div className="flex items-center gap-2 mb-1">
                   {!isMe && (
                     msg.avatar?.startsWith('http') ? (
@@ -519,7 +510,6 @@ export function CommunityPage() {
                     {msg.is_edited && !isDeleted && <span className="ml-1 italic">(modifié)</span>}
                   </span>
 
-                  {/* Views indicator */}
                   {viewers.length > 0 && (
                     <div className="flex items-center gap-1 ml-2">
                       <Eye size={12} className="text-muted-foreground" />
@@ -541,7 +531,6 @@ export function CommunityPage() {
                     </div>
                   )}
 
-                  {/* Context menu button */}
                   {!isDeleted && !msg.id.startsWith('temp-') && (
                     <div className="relative">
                       <button
@@ -577,7 +566,6 @@ export function CommunityPage() {
                   )}
                 </div>
 
-                {/* Reply preview */}
                 {replyMsg && (
                   <div className="mb-1 pl-3 border-l-2 border-primary/50 text-xs text-muted-foreground truncate max-w-full">
                     <span className="font-medium text-foreground">{replyMsg.auteur}</span>: {replyMsg.is_deleted ? 'Message supprimé' : replyMsg.contenu}
@@ -585,7 +573,6 @@ export function CommunityPage() {
                 )}
 
                 <div className={`rounded-2xl overflow-hidden ${isMe ? 'rounded-br-md' : 'rounded-bl-md'}`}>
-                  {/* Deleted message */}
                   {isDeleted ? (
                     <div className="p-3 bg-muted/50 italic text-muted-foreground text-sm">
                       {isMe ? '🗑️ Vous avez supprimé ce message' : msg.contenu}
@@ -650,7 +637,6 @@ export function CommunityPage() {
                   )}
                 </div>
 
-                {/* Reactions */}
                 {!isDeleted && (
                   <div className="flex items-center gap-1 mt-1 flex-wrap">
                     {Object.entries(msg.reactions).filter(([, users]) => Array.isArray(users) && users.length > 0).map(([emoji, users]) => {
@@ -677,10 +663,8 @@ export function CommunityPage() {
         })}
       </div>
 
-      {/* Typing indicators */}
       <TypingIndicator />
 
-      {/* Emoji picker */}
       {showEmoji && (
         <div className="glass-card p-3 mb-2 animate-scale-in">
           <div className="flex flex-wrap gap-2">
@@ -700,7 +684,6 @@ export function CommunityPage() {
         </div>
       )}
 
-      {/* Mention dropdown */}
       {showMentions && filteredMentionUsers.length > 0 && (
         <div className="bg-popover border border-border rounded-xl shadow-lg py-1 mb-1 max-h-40 overflow-y-auto animate-fade-in">
           <div className="px-3 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Mentionner un utilisateur</div>
@@ -725,7 +708,6 @@ export function CommunityPage() {
         </div>
       )}
 
-      {/* Reply banner */}
       {replyTo && (
         <div className="flex items-center gap-2 px-3 py-2 bg-secondary/80 rounded-t-xl border-l-2 border-primary text-sm animate-fade-in">
           <Reply size={14} className="text-primary shrink-0" />
@@ -738,7 +720,6 @@ export function CommunityPage() {
         </div>
       )}
 
-      {/* Input */}
       <div className="sticky bottom-0 flex items-end gap-2 py-2 border-t border-border bg-background z-10 md:pb-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))]" style={{ flexShrink: 0 }}>
         <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
         <div className="flex items-center shrink-0">
@@ -769,7 +750,6 @@ export function CommunityPage() {
         </button>
       </div>
 
-      {/* Fullscreen preview */}
       {previewFile && (
         <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPreviewFile(null)}>
           <button onClick={() => setPreviewFile(null)} className="absolute top-4 right-4 p-2 rounded-full bg-secondary hover:bg-muted transition-colors z-10"><X size={24} /></button>
@@ -785,7 +765,6 @@ export function CommunityPage() {
   );
 }
 
-// Composant TypingIndicator
 function TypingIndicator() {
   const [typingUsers, setTypingUsers] = useState<any[]>([]);
   

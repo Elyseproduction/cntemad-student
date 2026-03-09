@@ -257,7 +257,7 @@ async function saveConfig(key: string, value: any) {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('app_admin') === 'true');
   const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects);
   const [messages, setMessages] = useState<CommunityMessage[]>(defaultMessages);
   const [videos, setVideos] = useState<Video[]>(defaultVideos);

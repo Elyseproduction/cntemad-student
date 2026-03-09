@@ -420,7 +420,6 @@ export function CommunityPage() {
     try {
       const reactions = { ...msg.reactions };
       
-      // Retirer l'utilisateur des autres réactions (une seule réaction par message)
       Object.keys(reactions).forEach(key => {
         if (key !== emoji) {
           reactions[key] = (reactions[key] || []).filter(u => u !== username);
@@ -428,7 +427,6 @@ export function CommunityPage() {
         }
       });
       
-      // Ajouter/retirer la réaction choisie
       const users = reactions[emoji] || [];
       if (users.includes(username)) {
         reactions[emoji] = users.filter(u => u !== username);
@@ -444,7 +442,7 @@ export function CommunityPage() {
     }
   };
 
-  // Supprimer un message (soft delete)
+  // Supprimer un message
   const deleteMessage = async (msg: Message) => {
     setActiveMenu(null);
     
@@ -609,17 +607,6 @@ export function CommunityPage() {
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col animate-fade-in h-full px-2 pt-4 overflow-hidden">
-      {/* En-tête */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="font-heading font-bold text-2xl">💬 Communauté</h1>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Users size={16} />
-            <span>{onlineCount} en ligne</span>
-          </div>
-        </div>
-      </div>
-
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-2">
         {messages.length === 0 && (

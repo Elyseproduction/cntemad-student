@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Lock, Eye, EyeOff, Trash2, AlertTriangle, Shield, ShieldCheck, Code } from 'lucide-react';
+import { Lock, Eye, EyeOff, Trash2, AlertTriangle, Shield, ShieldCheck, Code, LogOut } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -37,7 +37,7 @@ function ConfirmDialog({ open, onConfirm, onCancel, loading }: { open: boolean; 
 }
 
 export function AdminModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { isAdmin, login } = useApp();
+  const { isAdmin, login, logout } = useApp();
   const { toast } = useToast();
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -106,6 +106,15 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
     } else {
       toast({ title: '✅ Conversations supprimées', description: 'Tous les messages ont été effacés.' });
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    onClose();
+    toast({
+      title: '🔐 Déconnexion admin',
+      description: 'Vous êtes déconnecté du mode administrateur',
+    });
   };
 
   if (!open) return null;
@@ -201,6 +210,16 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
                 <Trash2 size={16} />
                 {clearing ? 'Suppression...' : 'Effacer toutes les conversations'}
               </button>
+              
+              {/* Bouton de déconnexion admin */}
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors font-medium"
+              >
+                <LogOut size={16} />
+                Se déconnecter du mode Admin
+              </button>
+              
               <button onClick={onClose} className="w-full px-6 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity">
                 Fermer
               </button>

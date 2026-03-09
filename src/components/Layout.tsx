@@ -4,6 +4,7 @@ import { useApp } from '@/contexts/AppContext';
 import { AdminModal } from '@/components/AdminModal';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { supabase } from '@/integrations/supabase/client';
+import { LanguageSelector } from '@/components/LanguageSelector';
 
 const tabs = [
   { id: 'cours', label: 'Cours', icon: BookOpen, emoji: '📚' },

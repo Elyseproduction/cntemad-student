@@ -258,7 +258,7 @@ export function VideoPage() {
             </div>
 
             {/* Player area */}
-            <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-2 md:p-6 overflow-auto">
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-start p-2 md:p-6 overflow-auto">
               <div className={`w-full transition-all duration-300 ${isTheaterMode ? 'max-w-full' : 'max-w-5xl'}`}>
                 <div className="aspect-video rounded-xl overflow-hidden bg-background shadow-2xl shadow-primary/10 border border-border/30">
                   <iframe

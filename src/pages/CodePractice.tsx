@@ -29,7 +29,6 @@ export function CodePractice() {
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const [isPreview, setIsPreview] = useState(false);
 
-  // Charger les exercices depuis Supabase
   useEffect(() => {
     const loadExercises = async () => {
       const { data } = await supabase
@@ -54,7 +53,6 @@ export function CodePractice() {
     loadExercises();
   }, []);
 
-  // Initialiser le terminal
   useEffect(() => {
     if (!selectedExercise || selectedExercise.language === 'html') return;
     
@@ -110,7 +108,6 @@ export function CodePractice() {
       if (terminal) {
         terminal.writeln('\n\x1b[32m' + (data.output || 'Aucune sortie') + '\x1b[0m');
         
-        // Vérifier si le résultat correspond à l'attendu
         if (selectedExercise.expected_output) {
           const isCorrect = data.output?.trim() === selectedExercise.expected_output.trim();
           if (isCorrect) {
@@ -127,7 +124,6 @@ export function CodePractice() {
     }
   };
 
-  // Filtrer les exercices par matière programmation
   const programmingExercises = exercises.filter(ex => 
     ['python', 'javascript', 'html', 'css'].includes(ex.language)
   );
@@ -139,7 +135,6 @@ export function CodePractice() {
       </div>
 
       <div className="flex gap-4 h-full">
-        {/* Sidebar des exercices */}
         <div className="w-80 glass-card p-4 overflow-y-auto">
           <h2 className="font-heading font-semibold text-lg mb-4">Exercices disponibles</h2>
           {programmingExercises.length === 0 ? (
@@ -176,18 +171,14 @@ export function CodePractice() {
           )}
         </div>
 
-        {/* Zone principale */}
         {selectedExercise ? (
           <div className="flex-1 flex flex-col gap-4">
-            {/* Instructions */}
             <div className="glass-card p-4">
               <h3 className="font-heading font-semibold text-lg mb-2">{selectedExercise.title}</h3>
               <p className="text-muted-foreground whitespace-pre-wrap">{selectedExercise.instructions}</p>
             </div>
 
-            {/* Éditeur et terminal */}
             <div className="flex-1 flex gap-4">
-              {/* Éditeur */}
               <div className="flex-1 glass-card overflow-hidden">
                 <div className="flex items-center justify-between p-2 border-b border-border bg-secondary/50">
                   <span className="text-sm font-medium">{selectedExercise.language}</span>
@@ -240,7 +231,6 @@ export function CodePractice() {
                 )}
               </div>
 
-              {/* Terminal */}
               {selectedExercise.language !== 'html' && (
                 <div className="w-96 glass-card overflow-hidden">
                   <div className="flex items-center gap-2 p-2 border-b border-border bg-secondary/50">

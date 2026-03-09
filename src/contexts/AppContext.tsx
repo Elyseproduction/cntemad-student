@@ -257,7 +257,7 @@ async function saveConfig(key: string, value: any) {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('app_admin') === 'true');
   const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects);
   const [messages, setMessages] = useState<CommunityMessage[]>(defaultMessages);
   const [videos, setVideos] = useState<Video[]>(defaultVideos);
@@ -421,12 +421,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const login = useCallback((password: string) => {
     if (password === 'ZahGasy1') {
       setIsAdmin(true);
+      localStorage.setItem('app_admin', 'true');
       return true;
     }
     return false;
   }, []);
 
-  const logout = useCallback(() => setIsAdmin(false), []);
+  const logout = useCallback(() => {
+    setIsAdmin(false);
+    localStorage.removeItem('app_admin');
+  }, []);
 
   const toggleDarkMode = useCallback(() => {
     setDarkMode(prev => {

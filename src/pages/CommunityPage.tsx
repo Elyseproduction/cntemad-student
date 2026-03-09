@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, ShieldCheck, Code, Eye } from 'lucide-react';
+import { 
+  Send, Smile, Users, Download, X, Copy, Reply, Pencil, Trash2, 
+  Check, MoreVertical, Paperclip, FileText, ShieldCheck, Code, Eye 
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
@@ -179,14 +182,6 @@ export function CommunityPage() {
     }
   }, [messages]);
 
-  // Fermer le menu
-  useEffect(() => {
-    if (!activeMenu) return;
-    const handler = () => setActiveMenu(null);
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
-  }, [activeMenu]);
-
   // Filtrer les mentions
   const onlineNames = new Set(onlineUsers.map(u => u.username));
   const filteredMentionUsers = allProfiles
@@ -260,10 +255,10 @@ export function CommunityPage() {
     
     if (e.key === 'Enter') {
       if (isMobile) {
-        return; // Sur mobile, Entrée = saut de ligne
+        return;
       } else {
         if (!e.shiftKey) {
-          e.preventDefault(); // Sur PC, Entrée seul = rien
+          e.preventDefault();
         }
       }
     }
@@ -336,6 +331,11 @@ export function CommunityPage() {
       });
       
       if (insertError) throw insertError;
+      
+      toast({
+        title: '✅ Message vocal envoyé',
+        duration: 2000,
+      });
       
     } catch (err) {
       console.error('❌ Erreur envoi vocal:', err);
@@ -412,7 +412,7 @@ export function CommunityPage() {
     }
   };
 
-  // Réactions
+  // Ajouter une réaction
   const addReaction = async (msgId: string, emoji: string) => {
     const msg = messages.find(m => m.id === msgId);
     if (!msg) return;
@@ -420,7 +420,7 @@ export function CommunityPage() {
     try {
       const reactions = { ...msg.reactions };
       
-      // Retirer l'utilisateur des autres réactions
+      // Retirer l'utilisateur des autres réactions (une seule réaction par message)
       Object.keys(reactions).forEach(key => {
         if (key !== emoji) {
           reactions[key] = (reactions[key] || []).filter(u => u !== username);
@@ -428,7 +428,7 @@ export function CommunityPage() {
         }
       });
       
-      // Ajouter/retirer la réaction
+      // Ajouter/retirer la réaction choisie
       const users = reactions[emoji] || [];
       if (users.includes(username)) {
         reactions[emoji] = users.filter(u => u !== username);
@@ -444,7 +444,7 @@ export function CommunityPage() {
     }
   };
 
-  // Supprimer un message
+  // Supprimer un message (soft delete)
   const deleteMessage = async (msg: Message) => {
     setActiveMenu(null);
     
@@ -455,6 +455,11 @@ export function CommunityPage() {
         type: 'text',
         image_url: null,
       }).eq('id', msg.id);
+      
+      toast({
+        title: 'Message supprimé',
+        duration: 2000,
+      });
       
     } catch (err) {
       console.error('❌ Erreur suppression:', err);
@@ -485,6 +490,11 @@ export function CommunityPage() {
       setEditingMsg(null);
       setEditInput('');
       
+      toast({
+        title: 'Message modifié',
+        duration: 2000,
+      });
+      
     } catch (err) {
       console.error('❌ Erreur édition:', err);
       toast({
@@ -504,13 +514,18 @@ export function CommunityPage() {
   const copyMessage = (msg: Message) => {
     setActiveMenu(null);
     navigator.clipboard.writeText(msg.contenu);
-    toast({ title: 'Copié !', description: 'Message copié dans le presse-papier.' });
+    toast({ 
+      title: '✅ Copié !', 
+      description: 'Message copié dans le presse-papier.',
+      duration: 2000,
+    });
   };
 
   // Répondre à un message
   const replyToMessage = (msg: Message) => {
     setActiveMenu(null);
     setReplyTo(msg);
+    textareaRef.current?.focus();
   };
 
   // Télécharger un fichier
@@ -526,6 +541,11 @@ export function CommunityPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
+      
+      toast({
+        title: '✅ Téléchargement démarré',
+        duration: 2000,
+      });
     } catch {
       toast({ 
         title: 'Erreur', 
@@ -614,8 +634,8 @@ export function CommunityPage() {
           const isDeleted = msg.is_deleted;
           
           return (
-            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] relative group`}>
+            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group/msg`}>
+              <div className={`max-w-[80%] ${isMe ? 'order-2' : ''} relative`}>
                 {/* Informations auteur */}
                 <div className="flex items-center gap-2 mb-1">
                   {!isMe && (
@@ -631,13 +651,93 @@ export function CommunityPage() {
                     )
                   )}
                   
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                     {!isMe && (
-                      <span className="font-medium text-foreground mr-1">{msg.auteur}</span>
+                      <>
+                        <span className="font-medium text-foreground mr-1">{msg.auteur}</span>
+                        {allProfiles.find(p => p.display_name === msg.auteur)?.is_developer && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-accent/20 text-accent font-semibold">
+                            <Code size={11} /> Dev
+                          </span>
+                        )}
+                        {allProfiles.find(p => p.display_name === msg.auteur)?.is_admin_badge && (
+                          <ShieldCheck size={12} className="text-primary shrink-0" />
+                        )}
+                      </>
                     )}
                     {formatTime(msg.created_at)}
                     {msg.is_edited && !isDeleted && <span className="ml-1 italic">(modifié)</span>}
                   </span>
+
+                  {/* Menu contextuel (3 points) */}
+                  {!isDeleted && !msg.id.startsWith('temp-') && (
+                    <div className="relative">
+                      <button
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setActiveMenu(activeMenu === msg.id ? null : msg.id); 
+                        }}
+                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover/msg:opacity-100 transition-opacity"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+
+                      {activeMenu === msg.id && (
+                        <div 
+                          className="absolute z-40 top-6 right-0 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[150px] animate-fade-in"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {/* Répondre - pour tous */}
+                          <button 
+                            onClick={() => replyToMessage(msg)} 
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                          >
+                            <Reply size={14} /> Répondre
+                          </button>
+                          
+                          {/* Copier - pour messages texte */}
+                          {msg.type === 'text' && (
+                            <button 
+                              onClick={() => copyMessage(msg)} 
+                              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Copy size={14} /> Copier
+                            </button>
+                          )}
+                          
+                          {/* Télécharger - pour fichiers média */}
+                          {(msg.type === 'image' || msg.type === 'video' || msg.type === 'audio' || msg.type === 'file') && msg.image_url && (
+                            <button 
+                              onClick={() => handleDownload(msg.image_url!, msg.type)} 
+                              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Download size={14} /> Télécharger
+                            </button>
+                          )}
+                          
+                          {/* Modifier - uniquement pour ses propres messages texte */}
+                          {isMe && msg.type === 'text' && (
+                            <button 
+                              onClick={() => startEdit(msg)} 
+                              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Pencil size={14} /> Modifier
+                            </button>
+                          )}
+                          
+                          {/* Supprimer - uniquement pour ses propres messages */}
+                          {isMe && (
+                            <button 
+                              onClick={() => deleteMessage(msg)} 
+                              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-destructive hover:bg-muted transition-colors"
+                            >
+                              <Trash2 size={14} /> Supprimer
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Contenu du message */}
@@ -648,6 +748,7 @@ export function CommunityPage() {
                     </div>
                   ) : (
                     <>
+                      {/* Image */}
                       {msg.type === 'image' && msg.image_url && (
                         <div className="relative group">
                           <img 
@@ -656,33 +757,29 @@ export function CommunityPage() {
                             className="max-w-full max-h-72 rounded-2xl cursor-pointer object-cover"
                             onClick={() => setPreviewFile({ url: msg.image_url!, type: 'image' })}
                           />
-                          <button 
-                            onClick={() => handleDownload(msg.image_url!, 'photo')}
-                            className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Download size={16} />
-                          </button>
                         </div>
                       )}
                       
+                      {/* Vidéo */}
                       {msg.type === 'video' && msg.image_url && (
                         <div className="relative group">
-                          <video src={msg.image_url} controls className="max-w-full max-h-72 rounded-2xl" />
-                          <button 
-                            onClick={() => handleDownload(msg.image_url!, 'video')}
-                            className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Download size={16} />
-                          </button>
+                          <video 
+                            src={msg.image_url} 
+                            controls 
+                            className="max-w-full max-h-72 rounded-2xl"
+                            preload="metadata"
+                          />
                         </div>
                       )}
                       
+                      {/* Audio */}
                       {msg.type === 'audio' && msg.image_url && (
                         <div className="p-3 bg-secondary rounded-2xl">
                           <audio src={msg.image_url} controls className="w-full" />
                         </div>
                       )}
                       
+                      {/* Fichier */}
                       {msg.type === 'file' && msg.image_url && (
                         <div 
                           className="p-3 bg-secondary rounded-2xl flex items-center gap-3 group cursor-pointer"
@@ -699,6 +796,7 @@ export function CommunityPage() {
                         </div>
                       )}
                       
+                      {/* Texte */}
                       {msg.type === 'text' && (
                         editingMsg === msg.id ? (
                           <div className="flex items-center gap-1 p-1 bg-secondary rounded-xl">
@@ -712,10 +810,18 @@ export function CommunityPage() {
                               }}
                               className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-background border border-border focus:border-primary outline-none text-foreground text-sm"
                             />
-                            <button onClick={confirmEdit} className="p-2 text-primary hover:bg-muted rounded-lg">
+                            <button 
+                              onClick={confirmEdit} 
+                              className="p-2 text-primary hover:bg-muted rounded-lg"
+                              title="Confirmer"
+                            >
                               <Check size={16} />
                             </button>
-                            <button onClick={cancelEdit} className="p-2 text-muted-foreground hover:bg-muted rounded-lg">
+                            <button 
+                              onClick={cancelEdit} 
+                              className="p-2 text-muted-foreground hover:bg-muted rounded-lg"
+                              title="Annuler"
+                            >
                               <X size={16} />
                             </button>
                           </div>
@@ -751,7 +857,7 @@ export function CommunityPage() {
                         );
                       })}
                     
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity">
                       {reactionEmojis.map(e => (
                         <button
                           key={e}
@@ -769,6 +875,81 @@ export function CommunityPage() {
           );
         })}
       </div>
+
+      {/* Emoji picker */}
+      {showEmoji && (
+        <div className="glass-card p-3 mb-2 animate-scale-in">
+          <div className="flex flex-wrap gap-2">
+            {emojiPicker.map(e => (
+              <button 
+                key={e} 
+                onClick={() => { setInput(prev => prev + e); setShowEmoji(false); }} 
+                className="text-xl hover:scale-125 transition-transform"
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {uploading && (
+        <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground animate-fade-in">
+          <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />
+          Envoi en cours...
+        </div>
+      )}
+
+      {/* Mention dropdown */}
+      {showMentions && filteredMentionUsers.length > 0 && (
+        <div className="bg-popover border border-border rounded-xl shadow-lg py-1 mb-1 max-h-40 overflow-y-auto animate-fade-in">
+          <div className="px-3 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+            Mentionner un utilisateur
+          </div>
+          {filteredMentionUsers.map((u, i) => (
+            <button
+              key={u.username}
+              onClick={() => insertMention(u.username)}
+              className={`flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors ${
+                i === mentionIndex ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'
+              }`}
+            >
+              {u.avatar_url ? (
+                <img src={u.avatar_url} alt={u.username} className="w-6 h-6 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-primary text-primary-foreground shrink-0">
+                  {u.username[0]?.toUpperCase()}
+                </div>
+              )}
+              <span className="truncate">{u.username}</span>
+              {u.is_developer && (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent font-semibold shrink-0">
+                  Dev
+                </span>
+              )}
+              {u.isOnline && (
+                <span className="ml-auto w-2 h-2 rounded-full bg-green-500 shrink-0" title="En ligne" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Reply banner */}
+      {replyTo && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-secondary/80 rounded-t-xl border-l-2 border-primary text-sm animate-fade-in">
+          <Reply size={14} className="text-primary shrink-0" />
+          <span className="truncate text-muted-foreground">
+            Répondre à <span className="font-medium text-foreground">{replyTo.auteur}</span>: {replyTo.contenu}
+          </span>
+          <button 
+            onClick={() => setReplyTo(null)} 
+            className="ml-auto shrink-0 p-1 hover:bg-muted rounded"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Zone de saisie */}
       <div className={`sticky bottom-0 flex items-end gap-2 py-2 border-t border-border bg-background z-10 transition-all duration-300 ${
@@ -826,6 +1007,17 @@ export function CommunityPage() {
             className="absolute top-4 right-4 p-2 rounded-full bg-secondary hover:bg-muted transition-colors z-10"
           >
             <X size={24} />
+          </button>
+          
+          <button 
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              handleDownload(previewFile.url, previewFile.type); 
+            }} 
+            className="absolute top-4 right-16 p-2 rounded-full bg-secondary hover:bg-muted transition-colors z-10"
+            title="Télécharger"
+          >
+            <Download size={24} />
           </button>
           
           {previewFile.type === 'image' ? (

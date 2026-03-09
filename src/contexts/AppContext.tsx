@@ -420,10 +420,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [exerciseHistory]);
 
   const login = useCallback((password: string) => {
-    if (password === 'ZahGasy1') {
-      setIsAdmin(true);
-      localStorage.setItem('app_admin', 'true');
-      return true;
+  if (password === ADMIN_PIN) {
+    setIsAdmin(true);
+    localStorage.setItem('app_admin', 'true');
+    return true;
     }
     return false;
   }, []);

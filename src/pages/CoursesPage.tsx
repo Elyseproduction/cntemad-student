@@ -563,10 +563,6 @@ export function CoursesPage() {
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-        <div>
-          <h1 className="font-heading font-bold text-2xl md:text-3xl">📚 Cours</h1>
-          <p className="text-muted-foreground mt-1">Explorez vos matières et chapitres</p>
-        </div>
         {isAdmin && (
           <button onClick={() => setShowCreateSubject(true)} className="px-4 py-2 rounded-lg gradient-bg text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
             <Plus size={16} /> Nouvelle Matière
@@ -586,7 +582,7 @@ export function CoursesPage() {
           <div
             key={subject.id}
             onClick={() => setSelectedSubject(subject)}
-            className="glass-card-hover p-6 cursor-pointer animate-slide-up"
+            className="glass-card p-6 cursor-pointer animate-slide-up hover:shadow-md transition-shadow"
             style={{ animationDelay: `${i * 0.1}s` }}
           >
             <div className="flex items-center gap-3 mb-4">

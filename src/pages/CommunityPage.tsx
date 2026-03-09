@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Send, Smile, Paperclip, X, MoreVertical, Users,
-  Check, CheckCheck, Mic, ChevronDown
+  ChevronDown
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,7 +24,6 @@ interface Message {
   is_edited?: boolean;
   reply_to?: string | null;
   user_id?: string;
-  read_by?: string[];
 }
 
 const emojiPicker = ['😀', '😂', '😍', '🤔', '👍', '👏', '🎉', '🔥', '❤️', '💪', '📚', '🧠', '💡', '⚡', '🎯', '✅'];
@@ -40,7 +39,7 @@ export function CommunityPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
-  const [onlineCount, setOnlineCount] = useState(3);
+  const [onlineCount, setOnlineCount] = useState(0);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   
@@ -53,126 +52,73 @@ export function CommunityPage() {
   const userAvatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${username}&background=6C63FF&color=fff`;
   const userColor = '#6C63FF';
 
-  // Données mockées pour ressembler à vos captures
-  const mockContact = {
-    name: "Uldeau Juc...",
-    avatar: "https://ui-avatars.com/api/?name=Uldeau+Juc&background=00BCD4&color=fff",
-  };
-
-  // Messages mockés pour ressembler à vos captures
-  const mockMessages: Message[] = [
-    {
-      id: '1',
-      auteur: 'Uldeau Juc...',
-      avatar: mockContact.avatar,
-      couleur: '#00BCD4',
-      contenu: 'tsara izy @zay intelligent tsara😁',
-      type: 'text',
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      reactions: {},
-      is_edited: false,
-      is_deleted: false
-    },
-    {
-      id: '2',
-      auteur: 'Uldeau Juc...',
-      avatar: mockContact.avatar,
-      couleur: '#00BCD4',
-      contenu: 'Ts mavandy ndrek intelligence artificielle nareo 😂😂',
-      type: 'text',
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000 + 1000).toISOString(),
-      reactions: {},
-      is_edited: false,
-      is_deleted: false
-    },
-    {
-      id: '3',
-      auteur: username,
-      avatar: userAvatar,
-      couleur: userColor,
-      contenu: 'Eeheee jamais',
-      type: 'text',
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000 + 2000).toISOString(),
-      reactions: {},
-      is_edited: false,
-      is_deleted: false
-    },
-    {
-      id: '4',
-      auteur: 'Uldeau Juc...',
-      avatar: mockContact.avatar,
-      couleur: '#00BCD4',
-      contenu: 'Rah irahako ataony fo ataony ts mahay mavandy',
-      type: 'text',
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000 + 3000).toISOString(),
-      reactions: {},
-      is_edited: false,
-      is_deleted: false
-    },
-    {
-      id: '5',
-      auteur: 'Uldeau Juc...',
-      avatar: mockContact.avatar,
-      couleur: '#00BCD4',
-      contenu: 'Amaray ravagna av mianatra zh mijotro agn ao anw 12h na 13?',
-      type: 'text',
-      created_at: '2024-03-09T22:01:00Z',
-      reactions: {},
-      is_edited: false,
-      is_deleted: false
-    },
-    {
-      id: '6',
-      auteur: username,
-      avatar: userAvatar,
-      couleur: userColor,
-      contenu: 'Ya',
-      type: 'text',
-      created_at: '2024-03-09T22:02:00Z',
-      reactions: {},
-      is_edited: false,
-      is_deleted: false
-    },
-    {
-      id: '7',
-      auteur: username,
-      avatar: userAvatar,
-      couleur: userColor,
-      contenu: 'Zah ato fo',
-      type: 'text',
-      created_at: '2024-03-09T22:03:00Z',
-      reactions: {},
-      is_edited: false,
-      is_deleted: false
-    },
-    {
-      id: '8',
-      auteur: 'Uldeau Juc...',
-      avatar: mockContact.avatar,
-      couleur: '#00BCD4',
-      contenu: 'Ok ok',
-      type: 'text',
-      created_at: '2024-03-09T22:04:00Z',
-      reactions: {},
-      is_edited: false,
-      is_deleted: false
+  // Charger les messages depuis Supabase
+  const fetchMessages = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('community_messages')
+        .select('*')
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      
+      setMessages(data?.map(m => ({
+        ...m,
+        reactions: (m.reactions as Record<string, string[]>) || {},
+      })) || []);
+    } catch (err) {
+      console.error('❌ Erreur chargement messages:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de charger les messages',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  }, [toast]);
+
+  // Charger le nombre de personnes en ligne
+  const fetchOnlineCount = useCallback(async () => {
+    try {
+      const { count } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      
+      setOnlineCount(count || 0);
+    } catch (err) {
+      console.error('❌ Erreur chargement en ligne:', err);
+    }
+  }, []);
 
   useEffect(() => {
-    // Simuler le chargement
-    setTimeout(() => {
-      setMessages(mockMessages);
-      setLoading(false);
-    }, 500);
+    fetchMessages();
+    fetchOnlineCount();
 
-    // Simuler le compteur de personnes en ligne
-    const interval = setInterval(() => {
-      setOnlineCount(prev => Math.floor(Math.random() * 5) + 2);
-    }, 10000);
+    // Realtime pour les nouveaux messages
+    const channel = supabase
+      .channel('community_messages_realtime')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'community_messages' },
+        (payload) => {
+          const newMsg = payload.new as Message;
+          setMessages(prev => {
+            const exists = prev.some(m => m.id === newMsg.id);
+            if (exists) return prev;
+            return [...prev, { ...newMsg, reactions: newMsg.reactions || {} }];
+          });
+        }
+      )
+      .subscribe();
 
-    return () => clearInterval(interval);
-  }, []);
+    // Mise à jour périodique du compteur en ligne
+    const interval = setInterval(fetchOnlineCount, 30000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [fetchMessages, fetchOnlineCount]);
 
   // Détection du clavier mobile
   useEffect(() => {
@@ -242,34 +188,41 @@ export function CommunityPage() {
   const sendMessage = async () => {
     if (!input.trim()) return;
     
-    const newMsg: Message = {
-      id: `temp-${Date.now()}`,
-      auteur: username,
-      avatar: userAvatar,
-      couleur: userColor,
-      contenu: input,
-      type: 'text',
-      created_at: new Date().toISOString(),
-      reactions: {},
-      is_edited: false,
-      is_deleted: false,
-      user_id: user?.id
-    };
-    
-    setMessages(prev => [...prev, newMsg]);
+    const text = input;
     setInput('');
+    setShowEmoji(false);
     
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
     
-    // Scroll en bas après envoi
-    setTimeout(scrollToBottom, 100);
-    
-    // Simuler l'envoi
-    setTimeout(() => {
-      // Ici vous appelleriez Supabase
-    }, 100);
+    try {
+      const { error } = await supabase.from('community_messages').insert({
+        auteur: username,
+        avatar: userAvatar,
+        couleur: userColor,
+        contenu: text,
+        type: 'text',
+        reactions: {},
+        reply_to: replyingTo?.id || null,
+        user_id: user?.id,
+      });
+      
+      if (error) throw error;
+      
+      setReplyingTo(null);
+      
+      // Scroll en bas après envoi
+      setTimeout(scrollToBottom, 100);
+      
+    } catch (err) {
+      console.error('❌ Erreur envoi message:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible d\'envoyer le message',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -277,41 +230,99 @@ export function CommunityPage() {
     if (!file) return;
     
     if (file.size > MAX_FILE_SIZE) { 
-      toast({ title: 'Fichier trop volumineux', description: 'Max 100 Mo.', variant: 'destructive' }); 
+      toast({ 
+        title: 'Fichier trop volumineux', 
+        description: 'Max 100 Mo.', 
+        variant: 'destructive' 
+      }); 
       return; 
     }
     
     setUploading(true);
     
     try {
-      // Simuler l'upload
-      setTimeout(() => {
-        const url = URL.createObjectURL(file);
-        const type = file.type.startsWith('image/') ? 'image' : 'file';
+      const ext = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('community-media')
+        .upload(fileName, file);
         
-        const newMsg: Message = {
-          id: `temp-${Date.now()}`,
-          auteur: username,
-          avatar: userAvatar,
-          couleur: userColor,
-          contenu: type === 'image' ? '📷 Photo' : `📎 ${file.name}`,
-          type: type,
-          image_url: url,
-          created_at: new Date().toISOString(),
-          reactions: {},
-          is_edited: false,
-          is_deleted: false,
-          user_id: user?.id
-        };
-        
-        setMessages(prev => [...prev, newMsg]);
-        setUploading(false);
-        scrollToBottom();
-      }, 1000);
+      if (uploadError) throw uploadError;
+      
+      const { data: urlData } = supabase.storage
+        .from('community-media')
+        .getPublicUrl(fileName);
+      
+      const fileType = file.type.startsWith('image/') ? 'image' : 'file';
+      const fileLabel = file.type.startsWith('image/') ? '📷 Photo' : `📎 ${file.name}`;
+      
+      const { error: insertError } = await supabase.from('community_messages').insert({
+        auteur: username,
+        avatar: userAvatar,
+        couleur: userColor,
+        contenu: fileLabel,
+        type: fileType,
+        image_url: urlData.publicUrl,
+        reactions: {},
+        user_id: user?.id,
+      });
+      
+      if (insertError) throw insertError;
+      
+      scrollToBottom();
       
     } catch (err) {
-      console.error('Erreur upload:', err);
-      toast({ title: 'Erreur', description: 'Impossible d\'uploader le fichier', variant: 'destructive' });
+      console.error('❌ Erreur upload:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible d\'uploader le fichier',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleVoiceMessage = async (audioBlob: Blob) => {
+    setUploading(true);
+    
+    try {
+      const fileName = `voice-${Date.now()}.webm`;
+      const { error: uploadError } = await supabase.storage
+        .from('community-media')
+        .upload(fileName, audioBlob);
+        
+      if (uploadError) throw uploadError;
+      
+      const { data: urlData } = supabase.storage
+        .from('community-media')
+        .getPublicUrl(fileName);
+        
+      const { error: insertError } = await supabase.from('community_messages').insert({
+        auteur: username,
+        avatar: userAvatar,
+        couleur: userColor,
+        contenu: '🎤 Message vocal',
+        type: 'audio',
+        image_url: urlData.publicUrl,
+        reactions: {},
+        user_id: user?.id,
+      });
+      
+      if (insertError) throw insertError;
+      
+      scrollToBottom();
+      
+    } catch (err) {
+      console.error('❌ Erreur envoi vocal:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible d\'envoyer le message vocal',
+        variant: 'destructive',
+      });
+    } finally {
       setUploading(false);
     }
   };
@@ -326,18 +337,11 @@ export function CommunityPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      {/* En-tête simplifié */}
+      {/* En-tête avec compteur en ligne */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <img 
-              src={mockContact.avatar} 
-              alt={mockContact.name}
-              className="w-10 h-10 rounded-full object-cover"
-            />
-          </div>
           <div>
-            <h2 className="font-heading font-semibold text-foreground">{mockContact.name}</h2>
+            <h2 className="font-heading font-semibold text-foreground">Communauté</h2>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Users size={12} />
               <span>{onlineCount} en ligne</span>
@@ -354,84 +358,96 @@ export function CommunityPage() {
           paddingBottom: keyboardVisible ? '80px' : 'calc(80px + env(safe-area-inset-bottom))'
         }}
       >
-        {messages.map((msg, index) => {
-          const isMe = msg.auteur === username;
-          const showAvatar = index === 0 || messages[index - 1]?.auteur !== msg.auteur;
-          const isFirstOfGroup = showAvatar;
-          
-          return (
-            <div
-              key={msg.id}
-              className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in`}
-            >
-              <div className={`flex max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-2`}>
-                {/* Avatar */}
-                {!isMe && showAvatar && (
-                  <img
-                    src={msg.avatar}
-                    alt={msg.auteur}
-                    className="w-8 h-8 rounded-full mb-1 object-cover flex-shrink-0"
-                  />
-                )}
-                {!isMe && !showAvatar && (
-                  <div className="w-8 flex-shrink-0" />
-                )}
-                
-                {/* Bulle de message */}
-                <div className="flex flex-col">
-                  {/* Nom de l'auteur (premier message seulement) */}
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+            <p className="text-lg">Aucun message pour le moment</p>
+            <p className="text-sm">Soyez le premier à écrire ! 💬</p>
+          </div>
+        ) : (
+          messages.map((msg, index) => {
+            const isMe = msg.auteur === username;
+            const showAvatar = index === 0 || messages[index - 1]?.auteur !== msg.auteur;
+            const isFirstOfGroup = showAvatar;
+            
+            return (
+              <div
+                key={msg.id}
+                className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in`}
+              >
+                <div className={`flex max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-2`}>
+                  {/* Avatar */}
                   {!isMe && showAvatar && (
-                    <span className="text-xs text-muted-foreground ml-2 mb-1">
-                      {msg.auteur}
-                    </span>
+                    <img
+                      src={msg.avatar || `https://ui-avatars.com/api/?name=${msg.auteur}&background=00BCD4&color=fff`}
+                      alt={msg.auteur}
+                      className="w-8 h-8 rounded-full mb-1 object-cover flex-shrink-0"
+                    />
+                  )}
+                  {!isMe && !showAvatar && (
+                    <div className="w-8 flex-shrink-0" />
                   )}
                   
-                  <div
-                    className={`
-                      px-3 py-2 rounded-2xl break-words
-                      ${isMe 
-                        ? 'bg-primary text-primary-foreground rounded-br-none' 
-                        : 'bg-secondary text-foreground rounded-bl-none'
-                      }
-                      ${!isFirstOfGroup && isMe ? 'rounded-tr-none' : ''}
-                      ${!isFirstOfGroup && !isMe ? 'rounded-tl-none' : ''}
-                    `}
-                  >
-                    {msg.type === 'text' && (
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                        {msg.contenu}
-                      </p>
+                  {/* Bulle de message */}
+                  <div className="flex flex-col">
+                    {/* Nom de l'auteur (premier message seulement) */}
+                    {!isMe && showAvatar && (
+                      <span className="text-xs text-muted-foreground ml-2 mb-1">
+                        {msg.auteur}
+                      </span>
                     )}
                     
-                    {msg.type === 'image' && msg.image_url && (
-                      <img
-                        src={msg.image_url}
-                        alt="Image"
-                        className="max-w-full max-h-60 rounded-lg cursor-pointer"
-                        onClick={() => window.open(msg.image_url, '_blank')}
-                      />
-                    )}
+                    <div
+                      className={`
+                        px-3 py-2 rounded-2xl break-words
+                        ${isMe 
+                          ? 'bg-primary text-primary-foreground rounded-br-none' 
+                          : 'bg-secondary text-foreground rounded-bl-none'
+                        }
+                        ${!isFirstOfGroup && isMe ? 'rounded-tr-none' : ''}
+                        ${!isFirstOfGroup && !isMe ? 'rounded-tl-none' : ''}
+                      `}
+                    >
+                      {msg.type === 'text' && (
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                          {msg.contenu}
+                        </p>
+                      )}
+                      
+                      {msg.type === 'image' && msg.image_url && (
+                        <img
+                          src={msg.image_url}
+                          alt="Image"
+                          className="max-w-full max-h-60 rounded-lg cursor-pointer"
+                          onClick={() => window.open(msg.image_url, '_blank')}
+                        />
+                      )}
+                      
+                      {msg.type === 'audio' && msg.image_url && (
+                        <audio src={msg.image_url} controls className="w-full max-w-[200px]" />
+                      )}
+                    </div>
+                    
+                    {/* Heure */}
+                    <div className={`flex items-center mt-1 text-[10px] text-muted-foreground ${isMe ? 'justify-end' : 'justify-start'} px-1`}>
+                      <span>{formatMessageTime(msg.created_at)}</span>
+                      {msg.is_edited && <span className="ml-1 italic">(modifié)</span>}
+                    </div>
                   </div>
                   
-                  {/* Heure seulement (pas de ✓✓) */}
-                  <div className={`flex items-center mt-1 text-[10px] text-muted-foreground ${isMe ? 'justify-end' : 'justify-start'} px-1`}>
-                    <span>{formatMessageTime(msg.created_at)}</span>
-                  </div>
+                  {/* Espace pour les messages de l'utilisateur */}
+                  {isMe && (
+                    <div className="w-8 flex-shrink-0" />
+                  )}
                 </div>
-                
-                {/* Espace pour les messages de l'utilisateur */}
-                {isMe && (
-                  <div className="w-8 flex-shrink-0" />
-                )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
         <div ref={messagesEndRef} />
       </div>
 
       {/* Bouton discret pour descendre */}
-      {showScrollButton && (
+      {showScrollButton && messages.length > 0 && (
         <button
           onClick={scrollToBottom}
           className="fixed bottom-24 right-4 z-20 w-10 h-10 rounded-full bg-card/80 backdrop-blur-sm border border-border shadow-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-card transition-all animate-fade-in"
@@ -478,7 +494,7 @@ export function CommunityPage() {
             >
               <Paperclip size={20} />
             </button>
-            <VoiceRecorder onSend={(blob) => console.log('Voice', blob)} />
+            <VoiceRecorder onSend={handleVoiceMessage} />
           </div>
 
           <div className="flex-1 relative">

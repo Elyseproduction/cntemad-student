@@ -11,6 +11,7 @@ export function VoiceRecorder({ onSend }: VoiceRecorderProps) {
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -38,10 +39,12 @@ export function VoiceRecorder({ onSend }: VoiceRecorderProps) {
         setAudioUrl(url);
         
         stream.getTracks().forEach(track => track.stop());
+        setIsProcessing(false);
       };
 
       mediaRecorder.start();
       setIsRecording(true);
+      setIsProcessing(false);
       
       setRecordingTime(0);
       timerRef.current = setInterval(() => {
@@ -49,9 +52,10 @@ export function VoiceRecorder({ onSend }: VoiceRecorderProps) {
       }, 1000);
 
     } catch (err) {
+      console.error('Erreur microphone:', err);
       toast({
-        title: 'Erreur',
-        description: 'Impossible d\'accéder au microphone',
+        title: 'Erreur microphone',
+        description: 'Impossible d\'accéder au microphone. Vérifiez les permissions.',
         variant: 'destructive',
       });
     }
@@ -59,6 +63,7 @@ export function VoiceRecorder({ onSend }: VoiceRecorderProps) {
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      setIsProcessing(true);
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       if (timerRef.current) {
@@ -74,6 +79,7 @@ export function VoiceRecorder({ onSend }: VoiceRecorderProps) {
     setAudioBlob(null);
     setAudioUrl(null);
     setRecordingTime(0);
+    setIsProcessing(false);
   };
 
   const sendRecording = () => {
@@ -95,14 +101,16 @@ export function VoiceRecorder({ onSend }: VoiceRecorderProps) {
         <audio src={audioUrl} controls className="h-10 w-48" />
         <button
           onClick={sendRecording}
-          className="p-2 rounded-full text-primary hover:bg-muted transition-colors"
+          disabled={isProcessing}
+          className="p-2 rounded-full text-primary hover:bg-muted transition-colors disabled:opacity-50"
           title="Envoyer"
         >
           <Send size={18} />
         </button>
         <button
           onClick={cancelRecording}
-          className="p-2 rounded-full text-muted-foreground hover:bg-muted transition-colors"
+          disabled={isProcessing}
+          className="p-2 rounded-full text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
           title="Annuler"
         >
           <X size={18} />
@@ -114,11 +122,12 @@ export function VoiceRecorder({ onSend }: VoiceRecorderProps) {
   return (
     <button
       onClick={isRecording ? stopRecording : startRecording}
+      disabled={isProcessing}
       className={`p-2 rounded-full transition-colors ${
         isRecording 
           ? 'text-destructive animate-pulse bg-destructive/10' 
           : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-      }`}
+      } disabled:opacity-50`}
       title={isRecording ? 'Arrêter l\'enregistrement' : 'Message vocal'}
     >
       {isRecording ? (

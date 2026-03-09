@@ -240,7 +240,7 @@ export function ExercisesPage() {
         </div>
 
         {/* Question Card */}
-        <div className={`glass-card p-6 md:p-8 mb-6 transition-all duration-300 ${answered ? (isCorrect ? 'border-success/50 shadow-success/20 shadow-lg' : 'border-destructive/50 shadow-destructive/20 shadow-lg animate-shake') : 'card-shine'}`}>
+        <div className={`glass-card p-6 md:p-8 mb-6 transition-all duration-300 ${answered ? (isCorrect ? 'border-success/50 shadow-success/20 shadow-lg' : 'border-destructive/50 shadow-destructive/20 shadow-lg animate-shake') : ''}`}>
           <p className="text-lg md:text-xl font-medium leading-relaxed mb-6">{exercise.enonce}</p>
 
           {/* QCM */}
@@ -349,7 +349,6 @@ export function ExercisesPage() {
   return (
     <div className="max-w-2xl mx-auto animate-fade-in">
       <div className="text-center mb-8">
-        <h1 className="font-heading font-bold text-2xl md:text-3xl mb-2">🧠 Exercices IA</h1>
         <p className="text-muted-foreground">L'IA génère automatiquement les questions nécessaires pour couvrir tout le chapitre</p>
       </div>
 

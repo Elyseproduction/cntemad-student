@@ -103,10 +103,7 @@ export function VideoPage() {
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-        <div>
-          <h1 className="font-heading font-bold text-2xl md:text-3xl">🎬 Vidéothèque</h1>
-          <p className="text-muted-foreground mt-1">{videos.length} vidéo(s) disponible(s)</p>
-        </div>
+        <p className="text-muted-foreground">{videos.length} vidéo(s) disponible(s)</p>
         {isAdmin && (
           <button onClick={() => setShowAdd(true)} className="px-4 py-2 rounded-lg gradient-bg text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
             <Plus size={16} /> Ajouter une vidéo
@@ -114,6 +111,7 @@ export function VideoPage() {
         )}
       </div>
 
+      {/* Filter */}
       {matieres.length > 0 && (
         <div className="flex items-center gap-2 mb-6 flex-wrap">
           <Filter size={16} className="text-muted-foreground" />
@@ -128,6 +126,7 @@ export function VideoPage() {
         </div>
       )}
 
+      {/* Add Modal */}
       {showAdd && (
         <div className="glass-card p-6 mb-6 animate-scale-in">
           <h3 className="font-heading font-semibold text-lg mb-4">Ajouter une vidéo</h3>
@@ -147,9 +146,10 @@ export function VideoPage() {
         </div>
       )}
 
+      {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedVideos.map((video, i) => (
-          <div key={video.id} className="glass-card-hover overflow-hidden animate-slide-up" style={{ animationDelay: `${i * 0.05}s` }}>
+          <div key={video.id} className="glass-card overflow-hidden animate-slide-up hover:shadow-md transition-shadow" style={{ animationDelay: `${i * 0.05}s` }}>
             <div className="relative cursor-pointer group" onClick={() => handleVideoClick(video.id)}>
               <img
                 src={`https://img.youtube.com/vi/${video.youtubeId}/hqdefault.jpg`}
@@ -203,6 +203,7 @@ export function VideoPage() {
         </div>
       )}
 
+      {/* Professional Video Player Modal (uniquement pour non-Android) */}
       {!isAndroid && selectedVideo && (() => {
         const video = videos.find(v => v.id === selectedVideo);
         if (!video) return null;

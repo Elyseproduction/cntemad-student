@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
 export function useTyping(channelId: string = 'global') {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const heartbeatRef = useRef<NodeJS.Timeout>();
 
   const startTyping = useCallback(async () => {
@@ -19,7 +19,6 @@ export function useTyping(channelId: string = 'global') {
         onConflict: 'user_id,channel_id',
       });
 
-    // Heartbeat toutes les 2 secondes pour maintenir le statut
     if (heartbeatRef.current) {
       clearInterval(heartbeatRef.current);
     }
@@ -51,7 +50,6 @@ export function useTyping(channelId: string = 'global') {
       .eq('channel_id', channelId);
   }, [user, channelId]);
 
-  // Nettoyage au démontage
   useEffect(() => {
     return () => {
       if (heartbeatRef.current) {

@@ -19,10 +19,8 @@ export function VideoPage() {
   const [newUrl, setNewUrl] = useState('');
   const [newMatiere, setNewMatiere] = useState('');
 
-  // Détection Android
   const isAndroid = useMemo(() => /Android/i.test(navigator.userAgent), []);
 
-  // Tri des vidéos par date (plus récentes en haut)
   const sortedVideos = useMemo(() => {
     const filtered = filter ? videos.filter(v => v.matiere === filter) : videos;
     return [...filtered].sort((a, b) => 
@@ -64,7 +62,6 @@ export function VideoPage() {
     }
   }, [currentVideoIndex, sortedVideos]);
 
-  // Keyboard navigation
   useEffect(() => {
     if (!selectedVideo) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -77,7 +74,6 @@ export function VideoPage() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [selectedVideo, navigateVideo]);
 
-  // Lock body scroll when modal open
   useEffect(() => {
     if (selectedVideo) {
       document.body.style.overflow = 'hidden';
@@ -95,7 +91,6 @@ export function VideoPage() {
 
   const handleVideoClick = (videoId: string) => {
     if (isAndroid) {
-      // Pour Android, ouvrir dans l'app YouTube ou navigateur
       const video = videos.find(v => v.id === videoId);
       if (video) {
         window.open(`https://m.youtube.com/watch?v=${video.youtubeId}`, '_blank');
@@ -119,7 +114,6 @@ export function VideoPage() {
         )}
       </div>
 
-      {/* Filter */}
       {matieres.length > 0 && (
         <div className="flex items-center gap-2 mb-6 flex-wrap">
           <Filter size={16} className="text-muted-foreground" />
@@ -134,7 +128,6 @@ export function VideoPage() {
         </div>
       )}
 
-      {/* Add Modal */}
       {showAdd && (
         <div className="glass-card p-6 mb-6 animate-scale-in">
           <h3 className="font-heading font-semibold text-lg mb-4">Ajouter une vidéo</h3>
@@ -154,7 +147,6 @@ export function VideoPage() {
         </div>
       )}
 
-      {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedVideos.map((video, i) => (
           <div key={video.id} className="glass-card-hover overflow-hidden animate-slide-up" style={{ animationDelay: `${i * 0.05}s` }}>
@@ -211,16 +203,13 @@ export function VideoPage() {
         </div>
       )}
 
-      {/* Professional Video Player Modal (uniquement pour non-Android) */}
       {!isAndroid && selectedVideo && (() => {
         const video = videos.find(v => v.id === selectedVideo);
         if (!video) return null;
         return (
           <div className="fixed inset-0 z-50 flex flex-col animate-fade-in" style={{ animationDuration: '0.2s' }}>
-            {/* Backdrop */}
             <div className="absolute inset-0 bg-background/95 backdrop-blur-md" onClick={() => setSelectedVideo(null)} />
 
-            {/* Top bar */}
             <div className="relative z-10 flex items-center justify-between px-4 md:px-6 py-3 border-b border-border/50">
               <div className="flex items-center gap-3 min-w-0">
                 <button
@@ -244,7 +233,6 @@ export function VideoPage() {
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Navigation */}
                 <div className="hidden sm:flex items-center gap-1 mr-2">
                   <span className="text-xs text-muted-foreground">
                     {currentVideoIndex + 1} / {sortedVideos.length}
@@ -276,7 +264,6 @@ export function VideoPage() {
               </div>
             </div>
 
-            {/* Player area */}
             <div className="relative z-10 flex-1 flex flex-col items-center justify-start p-2 md:p-6 overflow-auto">
               <div className={`w-full transition-all duration-300 ${isTheaterMode ? 'max-w-full' : 'max-w-5xl'}`}>
                 <div className="aspect-video rounded-xl overflow-hidden bg-background shadow-2xl shadow-primary/10 border border-border/30">
@@ -289,14 +276,12 @@ export function VideoPage() {
                   />
                 </div>
 
-                {/* Video info below player */}
                 {video.description && (
                   <div className="mt-4 p-4 rounded-xl bg-secondary/50 border border-border/30">
                     <p className="text-sm text-muted-foreground leading-relaxed">{video.description}</p>
                   </div>
                 )}
 
-                {/* Suggested next videos */}
                 {hasNext && (
                   <div className="mt-4">
                     <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wider">Vidéo suivante</p>

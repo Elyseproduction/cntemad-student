@@ -127,7 +127,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_update_profile_badge: {
+        Args: {
+          new_is_admin_badge?: boolean
+          new_is_developer?: boolean
+          target_user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

@@ -61,10 +61,10 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
   const toggleBadge = async (profile: ProfileItem) => {
     setTogglingId(profile.id);
     const newValue = !profile.is_admin_badge;
-    const { error } = await supabase
-      .from('profiles')
-      .update({ is_admin_badge: newValue } as any)
-      .eq('id', profile.id);
+    const { error } = await supabase.rpc('admin_update_profile_badge', {
+      target_user_id: profile.id,
+      new_is_admin_badge: newValue,
+    });
     setTogglingId(null);
     if (error) {
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
@@ -80,10 +80,10 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
   const toggleDeveloper = async (profile: ProfileItem) => {
     setTogglingId(profile.id);
     const newValue = !profile.is_developer;
-    const { error } = await supabase
-      .from('profiles')
-      .update({ is_developer: newValue } as any)
-      .eq('id', profile.id);
+    const { error } = await supabase.rpc('admin_update_profile_badge', {
+      target_user_id: profile.id,
+      new_is_developer: newValue,
+    });
     setTogglingId(null);
     if (error) {
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });

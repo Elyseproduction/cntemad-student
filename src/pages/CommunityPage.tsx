@@ -53,6 +53,13 @@ export function CommunityPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Détection mobile
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    setIsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+  }, []);
+
   const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
   const userAvatar = profile?.avatar_url || '';
   const userColor = '#6C63FF';
@@ -212,8 +219,20 @@ export function CommunityPage() {
       }
     }
     
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+    // Règle intelligente :
+    // - Sur mobile : Entrée = saut de ligne (toujours)
+    // - Sur PC : Shift+Entrée = saut de ligne, Entrée seul = rien
+    if (e.key === 'Enter') {
+      if (isMobile) {
+        // Sur mobile, Entrée = saut de ligne (on laisse le comportement par défaut)
+        return;
+      } else {
+        // Sur PC, Entrée seul = rien, Shift+Entrée = saut de ligne
+        if (!e.shiftKey) {
+          e.preventDefault();
+        }
+        // Si Shift+Entrée, on laisse le comportement par défaut (saut de ligne)
+      }
     }
   };
 

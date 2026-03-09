@@ -18,7 +18,6 @@ export function useMessageViews(messageId: string) {
   useEffect(() => {
     if (!messageId) return;
 
-    // Charger les viewers existants
     const loadViewers = async () => {
       const { data } = await supabase
         .from('message_views')
@@ -38,7 +37,6 @@ export function useMessageViews(messageId: string) {
       }
     };
 
-    // Marquer ce message comme vu par l'utilisateur actuel
     const markAsViewed = async () => {
       if (!user) return;
 
@@ -53,14 +51,12 @@ export function useMessageViews(messageId: string) {
           ignoreDuplicates: false,
         });
 
-      // Recharger pour inclure ce viewer
       loadViewers();
     };
 
     loadViewers();
     markAsViewed();
 
-    // S'abonner aux nouveaux viewers en temps réel
     const channel = supabase
       .channel(`message-views-${messageId}`)
       .on(
@@ -72,7 +68,6 @@ export function useMessageViews(messageId: string) {
           filter: `message_id=eq.${messageId}`,
         },
         async (payload) => {
-          // Charger les détails du nouvel utilisateur
           const { data } = await supabase
             .from('profiles')
             .select('display_name, avatar_url')

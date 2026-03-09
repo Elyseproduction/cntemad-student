@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code } from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
-import { GoogleLoginButton } from '@/components/GoogleLoginButton';
+import { useMessageViews } from '@/hooks/useMessageViews';
+import { useTyping } from '@/hooks/useTyping';
+import { VoiceRecorder } from '@/components/VoiceRecorder';
 
 interface Message {
   id: string;
@@ -19,6 +21,7 @@ interface Message {
   is_deleted?: boolean;
   is_edited?: boolean;
   reply_to?: string | null;
+  user_id?: string;
 }
 
 const reactionEmojis = ['👍', '❤️', '😂', '🔥'];
@@ -30,7 +33,7 @@ export function CommunityPage() {
   const { toast } = useToast();
   const onlineCount = useOnlineCount();
   const { users: onlineUsers } = useOnlineUsers();
-  const { user, profile, loading: authLoading, signOut } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [allProfiles, setAllProfiles] = useState<{ display_name: string; avatar_url: string | null; is_admin_badge: boolean; is_developer?: boolean }[]>([]);
   const [input, setInput] = useState('');
@@ -47,12 +50,15 @@ export function CommunityPage() {
   const [mentionIndex, setMentionIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
   const userAvatar = profile?.avatar_url || '';
   const userColor = '#6C63FF';
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { startTyping, stopTyping } = useTyping();
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
   const fetchMessages = useCallback(async () => {
     const { data, error } = await supabase
@@ -68,16 +74,21 @@ export function CommunityPage() {
     setLoading(false);
   }, []);
 
-   // Fetch all registered users for mentions
-   useEffect(() => {
-     const fetchProfiles = async () => {
-       const { data } = await supabase
-         .from('profiles')
-         .select('display_name, avatar_url, is_admin_badge, is_developer');
-       if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ display_name: p.display_name!, avatar_url: p.avatar_url, is_admin_badge: (p as any).is_admin_badge ?? false, is_developer: (p as any).is_developer ?? false })));
-     };
-     fetchProfiles();
-   }, []);
+  // Fetch all registered users for mentions
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('display_name, avatar_url, is_admin_badge, is_developer');
+      if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ 
+        display_name: p.display_name!, 
+        avatar_url: p.avatar_url, 
+        is_admin_badge: (p as any).is_admin_badge ?? false, 
+        is_developer: (p as any).is_developer ?? false 
+      })));
+    };
+    fetchProfiles();
+  }, []);
 
   useEffect(() => {
     fetchMessages();
@@ -86,7 +97,6 @@ export function CommunityPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new as any;
-          // Check if current user is mentioned
           if (newMsg.auteur !== username && newMsg.contenu?.includes(`@${username}`)) {
             toast({ title: `💬 ${newMsg.auteur} vous a mentionné`, description: newMsg.contenu.slice(0, 80) });
           }
@@ -106,7 +116,6 @@ export function CommunityPage() {
       })
       .subscribe();
 
-    // Polling de secours toutes les 10s (le realtime gère l'instantané)
     const pollInterval = setInterval(() => { fetchMessages(); }, 10000);
 
     return () => {
@@ -119,7 +128,6 @@ export function CommunityPage() {
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    // Only auto-scroll if user is near bottom or new messages were added
     const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
     const hasNewMessages = messages.length > prevMsgCount.current;
     if (isNearBottom && hasNewMessages) {
@@ -132,7 +140,6 @@ export function CommunityPage() {
     if (editingMsg && editInputRef.current) editInputRef.current.focus();
   }, [editingMsg]);
 
-  // Close menu on outside click
   useEffect(() => {
     if (!activeMenu) return;
     const handler = () => setActiveMenu(null);
@@ -140,18 +147,28 @@ export function CommunityPage() {
     return () => document.removeEventListener('click', handler);
   }, [activeMenu]);
 
-  // Mention logic - show all registered users, with online indicator
   const onlineNames = new Set(onlineUsers.map(u => u.username));
   const filteredMentionUsers = allProfiles
     .filter(u => u.display_name !== username)
     .filter(u => !mentionFilter || u.display_name.toLowerCase().includes(mentionFilter.toLowerCase()))
     .map(u => ({ username: u.display_name, avatar_url: u.avatar_url, isOnline: onlineNames.has(u.display_name), is_developer: u.is_developer }));
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setInput(val);
 
-    // Detect "@" trigger
+    // Auto-resize
+    e.target.style.height = 'auto';
+    e.target.style.height = e.target.scrollHeight + 'px';
+
+    // Typing indicator
+    startTyping();
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      stopTyping();
+    }, 2000);
+
+    // Mention detection
     const cursorPos = e.target.selectionStart || val.length;
     const textBeforeCursor = val.slice(0, cursorPos);
     const atMatch = textBeforeCursor.match(/@(\w*)$/);
@@ -166,17 +183,17 @@ export function CommunityPage() {
   };
 
   const insertMention = (mentionUsername: string) => {
-    const cursorPos = inputRef.current?.selectionStart || input.length;
+    const cursorPos = textareaRef.current?.selectionStart || input.length;
     const textBeforeCursor = input.slice(0, cursorPos);
     const textAfterCursor = input.slice(cursorPos);
     const newBefore = textBeforeCursor.replace(/@(\w*)$/, `@${mentionUsername} `);
     setInput(newBefore + textAfterCursor);
     setShowMentions(false);
     setMentionFilter('');
-    inputRef.current?.focus();
+    textareaRef.current?.focus();
   };
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (showMentions && filteredMentionUsers.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -198,14 +215,16 @@ export function CommunityPage() {
         return;
       }
     }
-    if (e.key === 'Enter') sendMessage();
+    
+    // Bloquer l'envoi par Entrée
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+    }
   };
 
-  // Notify mentioned users via toast (for online users)
   const notifyMentionedUsers = (text: string) => {
     const mentions = text.match(/@(\w+)/g);
     if (!mentions) return;
-    // We show a toast for the sender confirming mentions were sent
     const mentionedNames = mentions.map(m => m.slice(1));
     const onlineNames = onlineUsers.map(u => u.username);
     const notified = mentionedNames.filter(n => onlineNames.includes(n) && n !== username);
@@ -220,8 +239,15 @@ export function CommunityPage() {
     setInput('');
     setShowEmoji(false);
     setShowMentions(false);
+    
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+    
     const replyId = replyTo?.id || null;
     setReplyTo(null);
+    stopTyping();
 
     notifyMentionedUsers(text);
 
@@ -235,6 +261,7 @@ export function CommunityPage() {
       created_at: new Date().toISOString(),
       reactions: {},
       reply_to: replyId,
+      user_id: user?.id,
     };
     setMessages(prev => [...prev, optimisticMsg]);
 
@@ -248,6 +275,39 @@ export function CommunityPage() {
       reply_to: replyId,
       user_id: user?.id,
     });
+  };
+
+  const handleVoiceMessage = async (audioBlob: Blob) => {
+    setUploading(true);
+    
+    // Upload audio file
+    const fileName = `voice-${Date.now()}.webm`;
+    const { error: uploadError } = await supabase.storage
+      .from('community-media')
+      .upload(fileName, audioBlob);
+      
+    if (uploadError) {
+      toast({ title: 'Erreur', description: uploadError.message, variant: 'destructive' });
+      setUploading(false);
+      return;
+    }
+    
+    const { data: urlData } = supabase.storage
+      .from('community-media')
+      .getPublicUrl(fileName);
+      
+    await supabase.from('community_messages').insert({
+      auteur: username,
+      avatar: userAvatar || username[0].toUpperCase(),
+      couleur: userColor,
+      contenu: '🎤 Message vocal',
+      type: 'audio',
+      image_url: urlData.publicUrl,
+      reactions: {},
+      user_id: user?.id,
+    });
+    
+    setUploading(false);
   };
 
   const getFileType = (file: File): 'image' | 'video' | 'file' => {
@@ -266,18 +326,30 @@ export function CommunityPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > MAX_FILE_SIZE) { toast({ title: 'Fichier trop volumineux', description: 'Max 100 Mo.', variant: 'destructive' }); return; }
+    if (file.size > MAX_FILE_SIZE) { 
+      toast({ title: 'Fichier trop volumineux', description: 'Max 100 Mo.', variant: 'destructive' }); 
+      return; 
+    }
     setUploading(true);
     const ext = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const { error: uploadError } = await supabase.storage.from('community-media').upload(fileName, file);
-    if (uploadError) { toast({ title: 'Erreur upload', description: uploadError.message, variant: 'destructive' }); setUploading(false); return; }
+    if (uploadError) { 
+      toast({ title: 'Erreur upload', description: uploadError.message, variant: 'destructive' }); 
+      setUploading(false); 
+      return; 
+    }
     const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
     const fileType = getFileType(file);
     await supabase.from('community_messages').insert({
-      auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
-      contenu: getFileLabel(file), type: fileType,
-      image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
+      auteur: username, 
+      avatar: userAvatar || username[0].toUpperCase(), 
+      couleur: userColor,
+      contenu: getFileLabel(file), 
+      type: fileType,
+      image_url: urlData.publicUrl, 
+      reactions: {}, 
+      user_id: user?.id,
     });
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -290,7 +362,6 @@ export function CommunityPage() {
     for (const [key, val] of Object.entries(msg.reactions)) {
       reactions[key] = Array.isArray(val) ? [...val] : [];
     }
-    // Remove user from ALL other emojis first (1 emoji per user per message)
     for (const key of Object.keys(reactions)) {
       if (key !== emoji) {
         reactions[key] = reactions[key].filter(u => u !== username);
@@ -299,11 +370,9 @@ export function CommunityPage() {
     }
     const users = reactions[emoji] || [];
     if (users.includes(username)) {
-      // Toggle off same emoji
       reactions[emoji] = users.filter(u => u !== username);
       if (reactions[emoji].length === 0) delete reactions[emoji];
     } else {
-      // Set this emoji
       reactions[emoji] = [...users, username];
     }
     await supabase.from('community_messages').update({ reactions }).eq('id', msgId);
@@ -403,13 +472,6 @@ export function CommunityPage() {
             <Users size={16} />
             <span>{onlineCount} en ligne</span>
           </div>
-          <div className="flex items-center gap-2">
-            {userAvatar && <img src={userAvatar} alt="" className="w-6 h-6 rounded-full" />}
-            <span className="text-xs text-muted-foreground hidden sm:inline">{username}</span>
-            <button onClick={signOut} className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Déconnexion">
-              <LogOut size={14} />
-            </button>
-          </div>
         </div>
       </div>
 
@@ -425,6 +487,7 @@ export function CommunityPage() {
           const isMe = msg.auteur === username;
           const isDeleted = msg.is_deleted;
           const replyMsg = getReplyMsg(msg.reply_to);
+          const viewers = useMessageViews(msg.id);
 
           return (
             <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in group/msg`}>
@@ -456,6 +519,28 @@ export function CommunityPage() {
                     {msg.is_edited && !isDeleted && <span className="ml-1 italic">(modifié)</span>}
                   </span>
 
+                  {/* Views indicator */}
+                  {viewers.length > 0 && (
+                    <div className="flex items-center gap-1 ml-2">
+                      <Eye size={12} className="text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">{viewers.length}</span>
+                      <div className="flex -space-x-2">
+                        {viewers.slice(0, 3).map((viewer, i) => (
+                          <img
+                            key={i}
+                            src={viewer.user.avatar_url || `https://ui-avatars.com/api/?name=${viewer.user.display_name}&background=6C63FF&color=fff`}
+                            alt={viewer.user.display_name}
+                            className="w-5 h-5 rounded-full border-2 border-background"
+                            title={`Vu par ${viewer.user.display_name} ${new Date(viewer.viewed_at).toLocaleTimeString()}`}
+                          />
+                        ))}
+                        {viewers.length > 3 && (
+                          <span className="text-xs text-muted-foreground ml-1">+{viewers.length - 3}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Context menu button */}
                   {!isDeleted && !msg.id.startsWith('temp-') && (
                     <div className="relative">
@@ -468,23 +553,19 @@ export function CommunityPage() {
 
                       {activeMenu === msg.id && (
                         <div className="absolute z-40 top-6 right-0 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[150px] animate-fade-in" onClick={e => e.stopPropagation()}>
-                          {/* Reply */}
                           <button onClick={() => replyToMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
                             <Reply size={14} /> Répondre
                           </button>
-                          {/* Copy */}
                           {msg.type === 'text' && (
                             <button onClick={() => copyMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
                               <Copy size={14} /> Copier
                             </button>
                           )}
-                          {/* Edit (own messages only) */}
                           {isMe && msg.type === 'text' && (
                             <button onClick={() => startEdit(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
                               <Pencil size={14} /> Modifier
                             </button>
                           )}
-                          {/* Delete (own messages only) */}
                           {isMe && (
                             <button onClick={() => deleteMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-destructive hover:bg-muted transition-colors">
                               <Trash2 size={14} /> Supprimer
@@ -527,6 +608,11 @@ export function CommunityPage() {
                           </button>
                         </div>
                       )}
+                      {msg.type === 'audio' && msg.image_url && (
+                        <div className="p-3 bg-secondary rounded-2xl">
+                          <audio src={msg.image_url} controls className="w-full" />
+                        </div>
+                      )}
                       {msg.type === 'file' && msg.image_url && (
                         <div className="p-3 bg-secondary rounded-2xl flex items-center gap-3 group cursor-pointer" onClick={() => handleDownload(msg.image_url!, 'file')}>
                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -554,7 +640,7 @@ export function CommunityPage() {
                           </div>
                         ) : (
                           <div className={`p-3 ${isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                            <p className="text-sm leading-relaxed">
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                               {renderMentionText(msg.contenu, isMe)}
                             </p>
                           </div>
@@ -590,6 +676,9 @@ export function CommunityPage() {
           );
         })}
       </div>
+
+      {/* Typing indicators */}
+      <TypingIndicator />
 
       {/* Emoji picker */}
       {showEmoji && (
@@ -650,7 +739,7 @@ export function CommunityPage() {
       )}
 
       {/* Input */}
-       <div className="sticky bottom-0 flex items-center gap-2 py-2 border-t border-border bg-background z-10 md:pb-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))]" style={{ flexShrink: 0 }}>
+      <div className="sticky bottom-0 flex items-end gap-2 py-2 border-t border-border bg-background z-10 md:pb-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))]" style={{ flexShrink: 0 }}>
         <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
         <div className="flex items-center shrink-0">
           <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
@@ -659,16 +748,23 @@ export function CommunityPage() {
           <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
             <Paperclip size={20} />
           </button>
+          <VoiceRecorder onSend={handleVoiceMessage} />
         </div>
-        <input
-          ref={inputRef}
+        <textarea
+          ref={textareaRef}
           value={input}
           onChange={handleInputChange}
           onKeyDown={handleInputKeyDown}
           placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
-          className="flex-1 min-w-0 px-4 py-2 rounded-full bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm"
+          className="flex-1 min-w-0 px-4 py-2 rounded-xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm resize-none"
+          rows={1}
         />
-        <button onClick={sendMessage} disabled={!input.trim()} className="p-2 rounded-full text-primary hover:bg-secondary transition-colors disabled:opacity-30 shrink-0">
+        <button 
+          onClick={sendMessage} 
+          disabled={!input.trim()} 
+          className="p-2 rounded-full text-primary hover:bg-secondary transition-colors disabled:opacity-30 shrink-0"
+          title="Envoyer"
+        >
           <Send size={20} />
         </button>
       </div>
@@ -685,6 +781,67 @@ export function CommunityPage() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// Composant TypingIndicator
+function TypingIndicator() {
+  const [typingUsers, setTypingUsers] = useState<any[]>([]);
+  
+  useEffect(() => {
+    const channel = supabase
+      .channel('typing_status')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'typing_status' },
+        async () => {
+          const { data } = await supabase
+            .from('typing_status')
+            .select('user_id, profiles(display_name, avatar_url)')
+            .gt('updated_at', new Date(Date.now() - 3000).toISOString());
+          setTypingUsers(data || []);
+        }
+      )
+      .subscribe();
+      
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .from('typing_status')
+        .select('user_id, profiles(display_name, avatar_url)')
+        .gt('updated_at', new Date(Date.now() - 3000).toISOString());
+      setTypingUsers(data || []);
+    }, 1000);
+    
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, []);
+  
+  if (typingUsers.length === 0) return null;
+  
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground animate-fade-in">
+      <div className="flex -space-x-2">
+        {typingUsers.slice(0, 3).map((user) => (
+          <img
+            key={user.user_id}
+            src={user.profiles.avatar_url || `https://ui-avatars.com/api/?name=${user.profiles.display_name}&background=6C63FF&color=fff`}
+            alt={user.profiles.display_name}
+            className="w-6 h-6 rounded-full border-2 border-background"
+          />
+        ))}
+      </div>
+      <span>
+        {typingUsers.length === 1 
+          ? `${typingUsers[0].profiles.display_name} écrit...`
+          : `${typingUsers.length} personnes écrivent...`}
+      </span>
+      <div className="flex gap-1">
+        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+      </div>
     </div>
   );
 }

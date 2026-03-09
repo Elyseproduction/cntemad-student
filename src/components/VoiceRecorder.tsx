@@ -37,14 +37,12 @@ export function VoiceRecorder({ onSend }: VoiceRecorderProps) {
         setAudioBlob(blob);
         setAudioUrl(url);
         
-        // Arrêter toutes les pistes
         stream.getTracks().forEach(track => track.stop());
       };
 
       mediaRecorder.start();
       setIsRecording(true);
       
-      // Timer
       setRecordingTime(0);
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);

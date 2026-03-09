@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code, Eye } from 'lucide-react';
+import { Send, Smile, Users, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, ShieldCheck, Code, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,7 +28,7 @@ const reactionEmojis = ['👍', '❤️', '😂', '🔥'];
 const emojiPicker = ['😀', '😂', '😍', '🤔', '👍', '👏', '🎉', '🔥', '❤️', '💪', '📚', '🧠', '💡', '⚡', '🎯', '✅'];
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
-const MAX_TEXTAREA_HEIGHT = 120; // 120px = environ 4-5 lignes
+const MAX_TEXTAREA_HEIGHT = 120;
 
 export function CommunityPage() {
   const { toast } = useToast();
@@ -51,13 +51,13 @@ export function CommunityPage() {
   const [mentionIndex, setMentionIndex] = useState(0);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [savedScrollPosition, setSavedScrollPosition] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Détection mobile
   const [isMobile, setIsMobile] = useState(false);
   
   useEffect(() => {
@@ -71,7 +71,7 @@ export function CommunityPage() {
   const { startTyping, stopTyping } = useTyping();
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Détection de l'ouverture/fermeture du clavier sur mobile
+  // Détection du clavier mobile
   useEffect(() => {
     const handleResize = () => {
       const isKeyboard = window.innerHeight < window.outerHeight * 0.8;
@@ -93,36 +93,48 @@ export function CommunityPage() {
   }, [savedScrollPosition]);
 
   const fetchMessages = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('community_messages')
-      .select('*')
-      .order('created_at', { ascending: true });
-    if (!error && data) {
-      setMessages(data.map(m => ({
-        ...m,
-        reactions: (m.reactions as Record<string, string[]>) || {},
-      })));
+    try {
+      const { data, error } = await supabase
+        .from('community_messages')
+        .select('*')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      if (data) {
+        setMessages(data.map(m => ({
+          ...m,
+          reactions: (m.reactions as Record<string, string[]>) || {},
+        })));
+      }
+    } catch (err) {
+      console.error('Erreur chargement messages:', err);
+      setError('Impossible de charger les messages');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     const fetchProfiles = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('display_name, avatar_url, is_admin_badge, is_developer');
-      if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ 
-        display_name: p.display_name!, 
-        avatar_url: p.avatar_url, 
-        is_admin_badge: (p as any).is_admin_badge ?? false, 
-        is_developer: (p as any).is_developer ?? false 
-      })));
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('display_name, avatar_url, is_admin_badge, is_developer');
+        if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ 
+          display_name: p.display_name!, 
+          avatar_url: p.avatar_url, 
+          is_admin_badge: (p as any).is_admin_badge ?? false, 
+          is_developer: (p as any).is_developer ?? false 
+        })));
+      } catch (err) {
+        console.error('Erreur chargement profils:', err);
+      }
     };
     fetchProfiles();
   }, []);
 
   useEffect(() => {
     fetchMessages();
+
     const msgChannel = supabase
       .channel('community_messages_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, (payload) => {
@@ -153,7 +165,7 @@ export function CommunityPage() {
       supabase.removeChannel(msgChannel);
       clearInterval(pollInterval);
     };
-  }, [fetchMessages]);
+  }, [fetchMessages, toast, username]);
 
   const prevMsgCount = useRef(0);
   useEffect(() => {
@@ -188,19 +200,16 @@ export function CommunityPage() {
     const val = e.target.value;
     setInput(val);
 
-    // Auto-resize avec limite
     e.target.style.height = 'auto';
     const newHeight = Math.min(e.target.scrollHeight, MAX_TEXTAREA_HEIGHT);
     e.target.style.height = newHeight + 'px';
     
-    // Gestion du scroll interne si on dépasse la limite
     if (e.target.scrollHeight > MAX_TEXTAREA_HEIGHT) {
       e.target.style.overflowY = 'auto';
     } else {
       e.target.style.overflowY = 'hidden';
     }
 
-    // Scroll automatique des messages quand on dépasse
     if (scrollRef.current && e.target.scrollHeight > MAX_TEXTAREA_HEIGHT) {
       const isNearBottom = scrollRef.current.scrollHeight - scrollRef.current.scrollTop - scrollRef.current.clientHeight < 50;
       if (isNearBottom) {
@@ -218,7 +227,6 @@ export function CommunityPage() {
       stopTyping();
     }, 2000);
 
-    // Détection des mentions
     const cursorPos = e.target.selectionStart || val.length;
     const textBeforeCursor = val.slice(0, cursorPos);
     const atMatch = textBeforeCursor.match(/@(\w*)$/);
@@ -266,13 +274,10 @@ export function CommunityPage() {
       }
     }
     
-    // Gestion intelligente de la touche Entrée
     if (e.key === 'Enter') {
       if (isMobile) {
-        // Sur mobile, Entrée = saut de ligne
         return;
       } else {
-        // Sur PC, Entrée seul = rien, Shift+Entrée = saut de ligne
         if (!e.shiftKey) {
           e.preventDefault();
         }
@@ -322,48 +327,72 @@ export function CommunityPage() {
     };
     setMessages(prev => [...prev, optimisticMsg]);
 
-    await supabase.from('community_messages').insert({
-      auteur: username,
-      avatar: userAvatar || username[0].toUpperCase(),
-      couleur: userColor,
-      contenu: text,
-      type: 'text',
-      reactions: {},
-      reply_to: replyId,
-      user_id: user?.id,
-    });
+    try {
+      const { error } = await supabase.from('community_messages').insert({
+        auteur: username,
+        avatar: userAvatar || username[0].toUpperCase(),
+        couleur: userColor,
+        contenu: text,
+        type: 'text',
+        reactions: {},
+        reply_to: replyId,
+        user_id: user?.id,
+      });
+      if (error) throw error;
+    } catch (err) {
+      console.error('Erreur envoi message:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible d\'envoyer le message',
+        variant: 'destructive',
+      });
+      // Retirer le message optimiste
+      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+    }
   };
 
   const handleVoiceMessage = async (audioBlob: Blob) => {
     setUploading(true);
     
-    const fileName = `voice-${Date.now()}.webm`;
-    const { error: uploadError } = await supabase.storage
-      .from('community-media')
-      .upload(fileName, audioBlob);
+    try {
+      const fileName = `voice-${Date.now()}.webm`;
+      const { error: uploadError } = await supabase.storage
+        .from('community-media')
+        .upload(fileName, audioBlob);
+        
+      if (uploadError) throw uploadError;
       
-    if (uploadError) {
-      toast({ title: 'Erreur', description: uploadError.message, variant: 'destructive' });
+      const { data: urlData } = supabase.storage
+        .from('community-media')
+        .getPublicUrl(fileName);
+        
+      const { error: insertError } = await supabase.from('community_messages').insert({
+        auteur: username,
+        avatar: userAvatar || username[0].toUpperCase(),
+        couleur: userColor,
+        contenu: '🎤 Message vocal',
+        type: 'audio',
+        image_url: urlData.publicUrl,
+        reactions: {},
+        user_id: user?.id,
+      });
+      
+      if (insertError) throw insertError;
+      
+      toast({
+        title: '✅ Message vocal envoyé',
+        duration: 2000,
+      });
+    } catch (err) {
+      console.error('Erreur envoi vocal:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible d\'envoyer le message vocal',
+        variant: 'destructive',
+      });
+    } finally {
       setUploading(false);
-      return;
     }
-    
-    const { data: urlData } = supabase.storage
-      .from('community-media')
-      .getPublicUrl(fileName);
-      
-    await supabase.from('community_messages').insert({
-      auteur: username,
-      avatar: userAvatar || username[0].toUpperCase(),
-      couleur: userColor,
-      contenu: '🎤 Message vocal',
-      type: 'audio',
-      image_url: urlData.publicUrl,
-      reactions: {},
-      user_id: user?.id,
-    });
-    
-    setUploading(false);
   };
 
   const getFileType = (file: File): 'image' | 'video' | 'file' => {
@@ -387,43 +416,55 @@ export function CommunityPage() {
       return; 
     }
     setUploading(true);
-    const ext = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from('community-media').upload(fileName, file);
-    if (uploadError) { 
-      toast({ title: 'Erreur upload', description: uploadError.message, variant: 'destructive' }); 
-      setUploading(false); 
-      return; 
+    try {
+      const ext = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('community-media').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      
+      const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
+      const fileType = getFileType(file);
+      
+      const { error: insertError } = await supabase.from('community_messages').insert({
+        auteur: username, 
+        avatar: userAvatar || username[0].toUpperCase(), 
+        couleur: userColor,
+        contenu: getFileLabel(file), 
+        type: fileType,
+        image_url: urlData.publicUrl, 
+        reactions: {}, 
+        user_id: user?.id,
+      });
+      if (insertError) throw insertError;
+    } catch (err) {
+      console.error('Erreur upload:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible d\'uploader le fichier',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
-    const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
-    const fileType = getFileType(file);
-    await supabase.from('community_messages').insert({
-      auteur: username, 
-      avatar: userAvatar || username[0].toUpperCase(), 
-      couleur: userColor,
-      contenu: getFileLabel(file), 
-      type: fileType,
-      image_url: urlData.publicUrl, 
-      reactions: {}, 
-      user_id: user?.id,
-    });
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const addReaction = async (msgId: string, emoji: string) => {
     const msg = messages.find(m => m.id === msgId);
     if (!msg) return;
+    
     const reactions: Record<string, string[]> = {};
     for (const [key, val] of Object.entries(msg.reactions)) {
       reactions[key] = Array.isArray(val) ? [...val] : [];
     }
+    
     for (const key of Object.keys(reactions)) {
       if (key !== emoji) {
         reactions[key] = reactions[key].filter(u => u !== username);
         if (reactions[key].length === 0) delete reactions[key];
       }
     }
+    
     const users = reactions[emoji] || [];
     if (users.includes(username)) {
       reactions[emoji] = users.filter(u => u !== username);
@@ -431,17 +472,31 @@ export function CommunityPage() {
     } else {
       reactions[emoji] = [...users, username];
     }
-    await supabase.from('community_messages').update({ reactions }).eq('id', msgId);
+    
+    try {
+      await supabase.from('community_messages').update({ reactions }).eq('id', msgId);
+    } catch (err) {
+      console.error('Erreur réaction:', err);
+    }
   };
 
   const deleteMessage = async (msg: Message) => {
     setActiveMenu(null);
-    await supabase.from('community_messages').update({
-      is_deleted: true,
-      contenu: `🗑️ ${msg.auteur} a supprimé son message`,
-      type: 'text',
-      image_url: null,
-    }).eq('id', msg.id);
+    try {
+      await supabase.from('community_messages').update({
+        is_deleted: true,
+        contenu: `🗑️ ${msg.auteur} a supprimé son message`,
+        type: 'text',
+        image_url: null,
+      }).eq('id', msg.id);
+    } catch (err) {
+      console.error('Erreur suppression:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de supprimer le message',
+        variant: 'destructive',
+      });
+    }
   };
 
   const startEdit = (msg: Message) => {
@@ -452,12 +507,21 @@ export function CommunityPage() {
 
   const confirmEdit = async () => {
     if (!editingMsg || !editInput.trim()) return;
-    await supabase.from('community_messages').update({
-      contenu: editInput.trim(),
-      is_edited: true,
-    }).eq('id', editingMsg);
-    setEditingMsg(null);
-    setEditInput('');
+    try {
+      await supabase.from('community_messages').update({
+        contenu: editInput.trim(),
+        is_edited: true,
+      }).eq('id', editingMsg);
+      setEditingMsg(null);
+      setEditInput('');
+    } catch (err) {
+      console.error('Erreur édition:', err);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de modifier le message',
+        variant: 'destructive',
+      });
+    }
   };
 
   const cancelEdit = () => {
@@ -519,6 +583,23 @@ export function CommunityPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center text-destructive">
+          <p className="text-lg font-medium">❌ Erreur</p>
+          <p className="text-sm">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto flex flex-col animate-fade-in h-full px-2 pt-4 overflow-hidden">
       <div className="flex items-center justify-between mb-4">
@@ -531,7 +612,6 @@ export function CommunityPage() {
         </div>
       </div>
 
-      {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-2 touch-pan-y overscroll-contain">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
@@ -548,7 +628,6 @@ export function CommunityPage() {
           return (
             <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in group/msg`}>
               <div className={`max-w-[80%] ${isMe ? 'order-2' : ''} relative`}>
-                {/* Author info */}
                 <div className="flex items-center gap-2 mb-1">
                   {!isMe && (
                     msg.avatar?.startsWith('http') ? (
@@ -575,7 +654,6 @@ export function CommunityPage() {
                     {msg.is_edited && !isDeleted && <span className="ml-1 italic">(modifié)</span>}
                   </span>
 
-                  {/* Views indicator */}
                   {viewers.length > 0 && (
                     <div className="flex items-center gap-1 ml-2">
                       <Eye size={12} className="text-muted-foreground" />
@@ -597,7 +675,6 @@ export function CommunityPage() {
                     </div>
                   )}
 
-                  {/* Context menu button */}
                   {!isDeleted && !msg.id.startsWith('temp-') && (
                     <div className="relative">
                       <button
@@ -633,7 +710,6 @@ export function CommunityPage() {
                   )}
                 </div>
 
-                {/* Reply preview */}
                 {replyMsg && (
                   <div className="mb-1 pl-3 border-l-2 border-primary/50 text-xs text-muted-foreground truncate max-w-full">
                     <span className="font-medium text-foreground">{replyMsg.auteur}</span>: {replyMsg.is_deleted ? 'Message supprimé' : replyMsg.contenu}
@@ -641,7 +717,6 @@ export function CommunityPage() {
                 )}
 
                 <div className={`rounded-2xl overflow-hidden ${isMe ? 'rounded-br-md' : 'rounded-bl-md'}`}>
-                  {/* Deleted message */}
                   {isDeleted ? (
                     <div className="p-3 bg-muted/50 italic text-muted-foreground text-sm">
                       {isMe ? '🗑️ Vous avez supprimé ce message' : msg.contenu}
@@ -706,7 +781,6 @@ export function CommunityPage() {
                   )}
                 </div>
 
-                {/* Reactions */}
                 {!isDeleted && (
                   <div className="flex items-center gap-1 mt-1 flex-wrap">
                     {Object.entries(msg.reactions).filter(([, users]) => Array.isArray(users) && users.length > 0).map(([emoji, users]) => {
@@ -733,10 +807,8 @@ export function CommunityPage() {
         })}
       </div>
 
-      {/* Typing indicator */}
       <TypingIndicator />
 
-      {/* Emoji picker */}
       {showEmoji && (
         <div className="glass-card p-3 mb-2 animate-scale-in">
           <div className="flex flex-wrap gap-2">
@@ -756,7 +828,6 @@ export function CommunityPage() {
         </div>
       )}
 
-      {/* Mention dropdown */}
       {showMentions && filteredMentionUsers.length > 0 && (
         <div className="bg-popover border border-border rounded-xl shadow-lg py-1 mb-1 max-h-40 overflow-y-auto animate-fade-in">
           <div className="px-3 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Mentionner un utilisateur</div>
@@ -781,7 +852,6 @@ export function CommunityPage() {
         </div>
       )}
 
-      {/* Reply banner */}
       {replyTo && (
         <div className="flex items-center gap-2 px-3 py-2 bg-secondary/80 rounded-t-xl border-l-2 border-primary text-sm animate-fade-in">
           <Reply size={14} className="text-primary shrink-0" />
@@ -794,7 +864,6 @@ export function CommunityPage() {
         </div>
       )}
 
-      {/* Input */}
       <div className={`sticky bottom-0 flex items-end gap-2 py-2 border-t border-border bg-background z-10 transition-all duration-300 ${
         keyboardVisible ? 'pb-2' : 'pb-[calc(3.5rem+env(safe-area-inset-bottom))]'
       }`} style={{ flexShrink: 0 }}>
@@ -845,7 +914,6 @@ export function CommunityPage() {
         </button>
       </div>
 
-      {/* Fullscreen preview */}
       {previewFile && (
         <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPreviewFile(null)}>
           <button onClick={() => setPreviewFile(null)} className="absolute top-4 right-4 p-2 rounded-full bg-secondary hover:bg-muted transition-colors z-10"><X size={24} /></button>

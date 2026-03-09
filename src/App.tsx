@@ -8,14 +8,12 @@ import { CoursesPage } from "@/pages/CoursesPage";
 import { ExercisesPage } from "@/pages/ExercisesPage";
 import { CommunityPage } from "@/pages/CommunityPage";
 import { VideoPage } from "@/pages/VideoPage";
-import { CodePractice } from "@/pages/CodePractice";
 import { useAuth } from "@/hooks/useAuth";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { ProfileSetup } from "@/components/ProfileSetup";
 import { InstallBanner } from "@/components/InstallBanner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { NotificationOverlay } from "@/components/NotificationOverlay";
-import { LanguageProvider } from "@/i18n/LanguageContext";
 
 const queryClient = new QueryClient();
 
@@ -61,7 +59,6 @@ function AppContent() {
       {activeTab === 'exercices' && <ExercisesPage />}
       {activeTab === 'communaute' && <CommunityPage />}
       {activeTab === 'videos' && <VideoPage />}
-      {activeTab === 'pratique' && <CodePractice />}
     </Layout>
   );
 }
@@ -69,18 +66,16 @@ function AppContent() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <LanguageProvider>
-        <Toaster />
-        <Sonner />
-        <UpdateBanner />
-        <AppProvider>
-          <AuthGate>
-            <AppContent />
-          </AuthGate>
-          <NotificationOverlay />
-          <InstallBanner />
-        </AppProvider>
-      </LanguageProvider>
+      <Toaster />
+      <Sonner />
+      <UpdateBanner />
+      <AppProvider>
+        <AuthGate>
+          <AppContent />
+        </AuthGate>
+        <NotificationOverlay />
+        <InstallBanner />
+      </AppProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

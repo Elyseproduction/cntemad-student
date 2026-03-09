@@ -4,7 +4,6 @@ import { useApp } from '@/contexts/AppContext';
 import { AdminModal } from '@/components/AdminModal';
 import { ProfileMenu } from '@/components/ProfileMenu';
 import { supabase } from '@/integrations/supabase/client';
-import { LanguageSelector } from '@/components/LanguageSelector';
 
 const tabs = [
   { id: 'cours', label: 'Cours', icon: BookOpen, emoji: '📚' },
@@ -174,10 +173,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {darkMode ? <Sun size={20} className="shrink-0" /> : <Moon size={20} className="shrink-0" />}
             {sidebarOpen && <span>{darkMode ? 'Mode clair' : 'Mode sombre'}</span>}
           </button>
-          <button onClick={toggleDarkMode} className="nav-item w-full">
-            {darkMode ? <Sun size={20} className="shrink-0" /> : <Moon size={20} className="shrink-0" />}
-            {sidebarOpen && <span>{darkMode ? 'Mode clair' : 'Mode sombre'}</span>}
-          </button>
           <button onClick={() => setShowAdmin(true)} className="nav-item w-full opacity-60 hover:opacity-100">
             <Settings size={20} className="shrink-0" />
             {sidebarOpen && <span>Admin</span>}
@@ -188,11 +183,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </aside>
-
-      {/* Nouveau sélecteur de langue */}
-      <div className="nav-item w-full">
-        <LanguageSelector />
-      </div>
 
       {/* Main Content */}
       <div className={`transition-all duration-300 ${sidebarOpen ? 'md:ml-64' : 'md:ml-20'}`}>

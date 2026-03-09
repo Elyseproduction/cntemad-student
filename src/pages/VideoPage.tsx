@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Plus, Trash2, X, Play, Video, Filter, ChevronLeft, ChevronRight, Calendar, BookOpen, Maximize2, Minimize2 } from 'lucide-react';
+import { timeAgo } from '@/lib/utils';
 
 function getYoutubeId(url: string): string {
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?\s]+)/);
@@ -18,15 +19,21 @@ export function VideoPage() {
   const [newUrl, setNewUrl] = useState('');
   const [newMatiere, setNewMatiere] = useState('');
 
-  const filteredVideos = useMemo(() => {
+  // Détection Android
+  const isAndroid = useMemo(() => /Android/i.test(navigator.userAgent), []);
+
+  // Tri des vidéos par date (plus récentes en haut)
+  const sortedVideos = useMemo(() => {
     const filtered = filter ? videos.filter(v => v.matiere === filter) : videos;
-    return [...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return [...filtered].sort((a, b) => 
+      new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime()
+    );
   }, [videos, filter]);
 
   const currentVideoIndex = useMemo(() => {
     if (!selectedVideo) return -1;
-    return filteredVideos.findIndex(v => v.id === selectedVideo);
-  }, [selectedVideo, filteredVideos]);
+    return sortedVideos.findIndex(v => v.id === selectedVideo);
+  }, [selectedVideo, sortedVideos]);
 
   const handleAdd = () => {
     const ytId = getYoutubeId(newUrl);
@@ -39,6 +46,7 @@ export function VideoPage() {
       youtubeId: ytId,
       matiere: newMatiere,
       date: new Date().toISOString().split('T')[0],
+      created_at: new Date().toISOString(),
     }]);
     setNewTitle(''); setNewDesc(''); setNewUrl(''); setNewMatiere('');
     setShowAdd(false);
@@ -51,10 +59,10 @@ export function VideoPage() {
   const navigateVideo = useCallback((direction: 'prev' | 'next') => {
     if (currentVideoIndex === -1) return;
     const newIndex = direction === 'prev' ? currentVideoIndex - 1 : currentVideoIndex + 1;
-    if (newIndex >= 0 && newIndex < filteredVideos.length) {
-      setSelectedVideo(filteredVideos[newIndex].id);
+    if (newIndex >= 0 && newIndex < sortedVideos.length) {
+      setSelectedVideo(sortedVideos[newIndex].id);
     }
-  }, [currentVideoIndex, filteredVideos]);
+  }, [currentVideoIndex, sortedVideos]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -83,7 +91,19 @@ export function VideoPage() {
   const matieres = [...new Set(videos.map(v => v.matiere).filter(Boolean))];
 
   const hasPrev = currentVideoIndex > 0;
-  const hasNext = currentVideoIndex < filteredVideos.length - 1;
+  const hasNext = currentVideoIndex < sortedVideos.length - 1;
+
+  const handleVideoClick = (videoId: string) => {
+    if (isAndroid) {
+      // Pour Android, ouvrir dans l'app YouTube ou navigateur
+      const video = videos.find(v => v.id === videoId);
+      if (video) {
+        window.open(`https://m.youtube.com/watch?v=${video.youtubeId}`, '_blank');
+      }
+    } else {
+      setSelectedVideo(videoId);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
@@ -136,9 +156,9 @@ export function VideoPage() {
 
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredVideos.map((video, i) => (
+        {sortedVideos.map((video, i) => (
           <div key={video.id} className="glass-card-hover overflow-hidden animate-slide-up" style={{ animationDelay: `${i * 0.05}s` }}>
-            <div className="relative cursor-pointer group" onClick={() => setSelectedVideo(video.id)}>
+            <div className="relative cursor-pointer group" onClick={() => handleVideoClick(video.id)}>
               <img
                 src={`https://img.youtube.com/vi/${video.youtubeId}/hqdefault.jpg`}
                 alt={video.titre}
@@ -150,7 +170,6 @@ export function VideoPage() {
                   <Play size={28} className="text-primary-foreground ml-1" fill="currentColor" />
                 </div>
               </div>
-              {/* Duration-style badge */}
               <div className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm text-foreground text-xs px-2 py-0.5 rounded font-medium">
                 YouTube
               </div>
@@ -170,7 +189,7 @@ export function VideoPage() {
                   )}
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                     <Calendar size={10} />
-                    {video.date}
+                    {timeAgo(video.created_at || video.date)}
                   </span>
                 </div>
                 {isAdmin && (
@@ -184,7 +203,7 @@ export function VideoPage() {
         ))}
       </div>
 
-      {filteredVideos.length === 0 && (
+      {sortedVideos.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           <Video size={56} className="mx-auto mb-4 opacity-20" />
           <p className="text-lg font-medium">Aucune vidéo disponible</p>
@@ -192,8 +211,8 @@ export function VideoPage() {
         </div>
       )}
 
-      {/* Professional Video Player Modal */}
-      {selectedVideo && (() => {
+      {/* Professional Video Player Modal (uniquement pour non-Android) */}
+      {!isAndroid && selectedVideo && (() => {
         const video = videos.find(v => v.id === selectedVideo);
         if (!video) return null;
         return (
@@ -219,7 +238,7 @@ export function VideoPage() {
                         {video.matiere}
                       </span>
                     )}
-                    <span className="text-xs text-muted-foreground">{video.date}</span>
+                    <span className="text-xs text-muted-foreground">{timeAgo(video.created_at || video.date)}</span>
                   </div>
                 </div>
               </div>
@@ -228,7 +247,7 @@ export function VideoPage() {
                 {/* Navigation */}
                 <div className="hidden sm:flex items-center gap-1 mr-2">
                   <span className="text-xs text-muted-foreground">
-                    {currentVideoIndex + 1} / {filteredVideos.length}
+                    {currentVideoIndex + 1} / {sortedVideos.length}
                   </span>
                 </div>
                 <button
@@ -262,7 +281,7 @@ export function VideoPage() {
               <div className={`w-full transition-all duration-300 ${isTheaterMode ? 'max-w-full' : 'max-w-5xl'}`}>
                 <div className="aspect-video rounded-xl overflow-hidden bg-background shadow-2xl shadow-primary/10 border border-border/30">
                   <iframe
-                    src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0&modestbranding=1`}
+                    src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
                     title={video.titre}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                     allowFullScreen
@@ -286,16 +305,16 @@ export function VideoPage() {
                       className="w-full flex items-center gap-3 p-3 rounded-xl bg-secondary/50 border border-border/30 hover:border-primary/30 hover:bg-secondary transition-all group text-left"
                     >
                       <img
-                        src={`https://img.youtube.com/vi/${filteredVideos[currentVideoIndex + 1].youtubeId}/mqdefault.jpg`}
+                        src={`https://img.youtube.com/vi/${sortedVideos[currentVideoIndex + 1].youtubeId}/mqdefault.jpg`}
                         alt=""
                         className="w-28 md:w-36 aspect-video object-cover rounded-lg flex-shrink-0"
                       />
                       <div className="min-w-0">
                         <h4 className="text-sm font-medium truncate group-hover:text-primary transition-colors">
-                          {filteredVideos[currentVideoIndex + 1].titre}
+                          {sortedVideos[currentVideoIndex + 1].titre}
                         </h4>
-                        {filteredVideos[currentVideoIndex + 1].matiere && (
-                          <span className="text-xs text-muted-foreground">{filteredVideos[currentVideoIndex + 1].matiere}</span>
+                        {sortedVideos[currentVideoIndex + 1].matiere && (
+                          <span className="text-xs text-muted-foreground">{sortedVideos[currentVideoIndex + 1].matiere}</span>
                         )}
                       </div>
                       <ChevronRight size={18} className="text-muted-foreground flex-shrink-0 ml-auto" />

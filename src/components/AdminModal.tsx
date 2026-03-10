@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Lock, Eye, EyeOff, Trash2, AlertTriangle, Shield, ShieldCheck, Code, LogOut } from 'lucide-react';
+import { Lock, Eye, EyeOff, Trash2, AlertTriangle, Shield, ShieldCheck, Code, KeyRound, Check } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -37,7 +37,7 @@ function ConfirmDialog({ open, onConfirm, onCancel, loading }: { open: boolean; 
 }
 
 export function AdminModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { isAdmin, login, logout } = useApp();
+  const { isAdmin, login, changeAdminPassword } = useApp();
   const { toast } = useToast();
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -46,6 +46,13 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [showConfirm, setShowConfirm] = useState(false);
   const [profiles, setProfiles] = useState<ProfileItem[]>([]);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [confirmCode, setConfirmCode] = useState('');
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   useEffect(() => {
     if (open && isAdmin) {
@@ -96,6 +103,17 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
     }
   };
 
+  const handleChangePassword = () => {
+    setPwError('');
+    if (!newPw || newPw.length < 4) { setPwError('Le mot de passe doit faire au moins 4 caractères.'); return; }
+    if (newPw !== confirmPw) { setPwError('Les mots de passe ne correspondent pas.'); return; }
+    if (confirmCode !== '1206') { setPwError('Code de confirmation incorrect.'); return; }
+    changeAdminPassword(newPw);
+    setPwSuccess(true);
+    setNewPw(''); setConfirmPw(''); setConfirmCode('');
+    setTimeout(() => { setPwSuccess(false); setShowChangePw(false); }, 2000);
+  };
+
   const clearAllMessages = async () => {
     setClearing(true);
     const { error } = await supabase.from('community_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -106,15 +124,6 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
     } else {
       toast({ title: '✅ Conversations supprimées', description: 'Tous les messages ont été effacés.' });
     }
-  };
-
-  const handleLogout = () => {
-    logout();
-    onClose();
-    toast({
-      title: '🔐 Déconnexion admin',
-      description: 'Vous êtes déconnecté du mode administrateur',
-    });
   };
 
   if (!open) return null;
@@ -201,6 +210,60 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
               </div>
             </div>
 
+            {/* Change password section */}
+            <div className="mb-4">
+              <button
+                onClick={() => { setShowChangePw(p => !p); setPwError(''); setPwSuccess(false); }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-secondary text-foreground font-medium hover:bg-secondary/80 transition-colors text-sm"
+              >
+                <KeyRound size={15} />
+                Changer le mot de passe admin
+              </button>
+
+              {showChangePw && (
+                <div className="mt-3 p-4 rounded-xl border border-border bg-secondary/30 space-y-3 animate-fade-in">
+                  <div className="relative">
+                    <input
+                      type={showNewPw ? 'text' : 'password'}
+                      value={newPw}
+                      onChange={e => { setNewPw(e.target.value); setPwError(''); }}
+                      placeholder="Nouveau mot de passe"
+                      className="w-full px-3 py-2.5 rounded-lg bg-background border border-border focus:border-primary outline-none text-sm text-foreground pr-10"
+                    />
+                    <button type="button" onClick={() => setShowNewPw(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showNewPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  <input
+                    type="password"
+                    value={confirmPw}
+                    onChange={e => { setConfirmPw(e.target.value); setPwError(''); }}
+                    placeholder="Confirmer le nouveau mot de passe"
+                    className="w-full px-3 py-2.5 rounded-lg bg-background border border-border focus:border-primary outline-none text-sm text-foreground"
+                  />
+                  <input
+                    type="password"
+                    value={confirmCode}
+                    onChange={e => { setConfirmCode(e.target.value); setPwError(''); }}
+                    placeholder="Code de confirmation (1206)"
+                    className="w-full px-3 py-2.5 rounded-lg bg-background border border-border focus:border-primary outline-none text-sm text-foreground"
+                  />
+                  {pwError && <p className="text-destructive text-xs text-center">{pwError}</p>}
+                  {pwSuccess && (
+                    <p className="text-green-500 text-xs text-center flex items-center justify-center gap-1">
+                      <Check size={13} /> Mot de passe changé avec succès !
+                    </p>
+                  )}
+                  <button
+                    onClick={handleChangePassword}
+                    className="w-full py-2.5 rounded-lg gradient-bg text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
+                  >
+                    Valider le changement
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-3">
               <button
                 onClick={() => setShowConfirm(true)}
@@ -210,16 +273,6 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
                 <Trash2 size={16} />
                 {clearing ? 'Suppression...' : 'Effacer toutes les conversations'}
               </button>
-              
-              {/* Bouton de déconnexion admin */}
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors font-medium"
-              >
-                <LogOut size={16} />
-                Se déconnecter du mode Admin
-              </button>
-              
               <button onClick={onClose} className="w-full px-6 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity">
                 Fermer
               </button>

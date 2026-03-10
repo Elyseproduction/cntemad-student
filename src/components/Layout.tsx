@@ -220,13 +220,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
           className={`animate-fade-in ${
             isCommunity
               ? [
-                  'flex-1 overflow-hidden flex flex-col',
+                  'flex-1 flex flex-col',
                   'max-h-[calc(100dvh-64px-56px-env(safe-area-inset-bottom))]',
                   'md:max-h-[calc(100dvh-64px)]',
-                  'touch-none',
                 ].join(' ')
               : 'p-4 md:p-6 pb-24 md:pb-6'
           }`}
+          style={isCommunity ? { overflow: 'hidden', width: '100%', boxSizing: 'border-box' } : undefined}
         >
           {children}
         </main>

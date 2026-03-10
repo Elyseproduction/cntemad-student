@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { lovable } from '@/integrations/lovable/index';
-import { LogIn } from 'lucide-react';
+import { BookOpen, Brain, MessageCircle, Video } from 'lucide-react';
+
+const features = [
+  { icon: BookOpen,      label: 'Cours',        desc: 'Ressources pédagogiques' },
+  { icon: Brain,         label: 'Exercices IA',  desc: 'Pratique intelligente'   },
+  { icon: MessageCircle, label: 'Communauté',    desc: 'Entraide étudiante'      },
+  { icon: Video,         label: 'Vidéothèque',   desc: 'Cours en vidéo'          },
+];
 
 export function GoogleLoginButton() {
   const [loading, setLoading] = useState(false);
@@ -17,24 +24,42 @@ export function GoogleLoginButton() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-6 p-8 animate-fade-in">
-      <div className="text-center space-y-2">
-        <div className="w-16 h-16 rounded-xl gradient-bg flex items-center justify-center text-primary-foreground font-heading font-bold text-2xl mx-auto mb-2">U</div>
-        <h2 className="font-heading font-bold text-2xl">Bienvenue sur UniLearn</h2>
-        <p className="text-muted-foreground text-sm max-w-sm">
-          Connecte-toi avec ton compte Google pour accéder aux cours, exercices, communauté et vidéos.
-        </p>
+    <div className="w-full max-w-sm mx-auto flex flex-col items-center gap-6 p-6 animate-fade-in">
+
+      {/* Logo + titre */}
+      <div className="text-center space-y-3">
+        <div className="w-16 h-16 rounded-2xl gradient-bg flex items-center justify-center text-primary-foreground font-heading font-bold text-2xl mx-auto shadow-lg">
+          U
+        </div>
+        <div>
+          <h1 className="font-heading font-bold text-2xl gradient-text">UniLearn</h1>
+          <p className="text-muted-foreground text-sm mt-1">Plateforme étudiante CNTEMAD</p>
+        </div>
       </div>
-      <button
-        onClick={handleLogin}
-        disabled={loading}
-        className="flex items-center gap-3 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-      >
+
+      {/* Grille des 4 fonctionnalités */}
+      <div className="grid grid-cols-2 gap-2 w-full">
+        {features.map(({ icon: Icon, label, desc }) => (
+          <div key={label}
+            className="flex flex-col gap-1 p-3 rounded-xl bg-secondary/60 border border-border/50 hover:border-primary/30 transition-colors">
+            <Icon size={18} className="text-primary" />
+            <span className="text-xs font-semibold text-foreground leading-tight">{label}</span>
+            <span className="text-[10px] text-muted-foreground leading-tight">{desc}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Bouton Google */}
+      <button onClick={handleLogin} disabled={loading}
+        className="w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 shadow-md shadow-primary/25">
         {loading ? (
-          <div className="animate-spin w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full" />
+          <>
+            <div className="animate-spin w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full" />
+            Connexion en cours…
+          </>
         ) : (
           <>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -44,6 +69,10 @@ export function GoogleLoginButton() {
           </>
         )}
       </button>
+
+      <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+        En vous connectant, vous acceptez d'utiliser vos informations Google uniquement pour authentification.
+      </p>
     </div>
   );
 }

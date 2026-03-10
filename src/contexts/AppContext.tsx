@@ -27,12 +27,22 @@ export interface Chapter {
   learned?: boolean;
 }
 
+export interface Session {
+  id: string;
+  nom: string;
+  couleur: string;
+  icone: string;
+}
+
+export const DEFAULT_SESSION: Session = { id: 'default', nom: 'Informatique', couleur: '#6C63FF', icone: '💻' };
+
 export interface Subject {
   id: string;
   nom: string;
   couleur: string;
   icone: string;
   chapitres: Chapter[];
+  session_id?: string;
 }
 
 export interface CommunityMessage {
@@ -80,6 +90,8 @@ interface AppContextType {
   login: (password: string) => boolean;
   logout: () => void;
   changeAdminPassword: (newPassword: string) => void;
+  sessions: Session[];
+  setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
   subjects: Subject[];
   setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>;
   messages: CommunityMessage[];
@@ -265,6 +277,7 @@ async function saveConfig(key: string, value: any) {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('app_admin') === 'true');
+  const [sessions, setSessions] = useState<Session[]>([DEFAULT_SESSION]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [messages, setMessages] = useState<CommunityMessage[]>(defaultMessages);
   const [videos, setVideos] = useState<Video[]>([]);
@@ -284,13 +297,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Load subjects & videos from database on mount + polling every second for non-admins
   useEffect(() => {
     async function load() {
-      const [dbSubjects, dbVideos] = await Promise.all([
+      const [dbSubjects, dbVideos, dbSessions] = await Promise.all([
         loadConfig('subjects'),
         loadConfig('videos'),
+        loadConfig('sessions'),
       ]);
       // Use DB data if available, otherwise fall back to defaults
       setSubjects(dbSubjects && Array.isArray(dbSubjects) && dbSubjects.length > 0 ? dbSubjects : defaultSubjects);
       setVideos(dbVideos && Array.isArray(dbVideos) && dbVideos.length > 0 ? dbVideos : defaultVideos);
+      setSessions(dbSessions && Array.isArray(dbSessions) && dbSessions.length > 0 ? dbSessions : [DEFAULT_SESSION]);
       initialLoadDone.current = true;
       setDbLoaded(true);
     }
@@ -299,10 +314,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Polling toutes les secondes pour synchroniser les changements de l'admin
     const pollInterval = setInterval(async () => {
       if (isAdminRef.current) return;
-      const [dbSubjects, dbVideos] = await Promise.all([
+      const [dbSubjects, dbVideos, dbSessions] = await Promise.all([
         loadConfig('subjects'),
         loadConfig('videos'),
+        loadConfig('sessions'),
       ]);
+      if (dbSessions && Array.isArray(dbSessions)) {
+        setSessions(prev => {
+          const ps = JSON.stringify(prev);
+          const ns = JSON.stringify(dbSessions);
+          return ps === ns ? prev : dbSessions;
+        });
+      }
       if (dbSubjects && Array.isArray(dbSubjects)) {
         setSubjects(prev => {
           const prevStr = JSON.stringify(prev);
@@ -439,6 +462,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     saveConfig('subjects', subjects);
   }, [subjects, isAdmin]);
 
+  // Save sessions to DB when changed (admin only)
+  const sessionsRef = useRef(sessions);
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    if (!isAdmin) return;
+    if (sessionsRef.current === sessions) return;
+    sessionsRef.current = sessions;
+    saveConfig('sessions', sessions);
+  }, [sessions, isAdmin]);
+
   // Save videos to DB when changed (admin only)
   const videosRef = useRef(videos);
   useEffect(() => {
@@ -495,6 +528,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       isAdmin, login, logout, changeAdminPassword,
+      sessions, setSessions,
       subjects, setSubjects,
       messages, setMessages,
       videos, setVideos,

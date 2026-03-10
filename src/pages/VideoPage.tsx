@@ -4,6 +4,47 @@ import { useApp } from '@/contexts/AppContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Trash2, X, Play, Video, Filter, ChevronLeft, ChevronRight, Calendar, BookOpen, Maximize2, Minimize2, Upload, FileVideo, Loader2 } from 'lucide-react';
 
+async function generateAIThumbnail(titre: string, description: string, matiere: string): Promise<string | null> {
+  try {
+    const prompt = `Tu es un designer graphique expert. Génère du code SVG (600x338px, ratio 16:9) pour une miniature vidéo éducative.
+
+Contexte de la vidéo :
+- Titre : ${titre}
+- Description : ${description || 'Aucune description'}
+- Matière : ${matiere || 'Général'}
+
+Règles STRICTES :
+- SVG valide, viewBox="0 0 600 338", xmlns="http://www.w3.org/2000/svg"
+- Fond avec dégradé de couleurs liées à la matière (sombres, modernes, style dark UI)
+- Titre bien lisible en blanc, centré, taille adaptée (max 2 lignes)
+- Un grand emoji ou symbole représentatif de la matière
+- Badge matière en bas à gauche
+- Bouton play circulaire centré semi-transparent
+- Style moderne, minimaliste, professionnel
+- Textes encodés proprement (pas de caractères spéciaux non échappés dans SVG)
+- RÉPONDS UNIQUEMENT avec le code SVG brut, sans balises markdown, sans explication`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    const data = await response.json();
+    const svgText = data.content?.map((b: any) => b.text || '').join('').trim();
+    if (!svgText || !svgText.includes('<svg')) return null;
+    // Clean and encode as data URL
+    const clean = svgText.replace(/```svg|```xml|```/g, '').trim();
+    const blob = new Blob([clean], { type: 'image/svg+xml' });
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
+  }
+}
+
 function getYoutubeId(url: string): string {
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?\s]+)/);
   return match?.[1] || '';
@@ -24,6 +65,7 @@ export function VideoPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [generatingThumb, setGeneratingThumb] = useState(false);
 
   const filteredVideos = useMemo(() => {
     const filtered = filter ? videos.filter(v => v.matiere === filter) : videos;
@@ -70,6 +112,32 @@ export function VideoPage() {
       }
       setUploadProgress(80);
       const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
+
+      // Générer miniature IA
+      setGeneratingThumb(true);
+      const thumbDataUrl = await generateAIThumbnail(newTitle, newDesc, newMatiere);
+      setGeneratingThumb(false);
+
+      // Upload thumbnail SVG to Supabase storage if generated
+      let finalThumbUrl: string | undefined;
+      if (thumbDataUrl) {
+        try {
+          const svgResp = await fetch(thumbDataUrl);
+          const svgBlob = await svgResp.blob();
+          const thumbFileName = `thumbnails/${Date.now()}-thumb.svg`;
+          const { error: thumbErr } = await supabase.storage.from('community-media').upload(thumbFileName, svgBlob, {
+            contentType: 'image/svg+xml',
+            cacheControl: '3600',
+            upsert: false,
+          });
+          if (!thumbErr) {
+            const { data: thumbUrl } = supabase.storage.from('community-media').getPublicUrl(thumbFileName);
+            finalThumbUrl = thumbUrl.publicUrl;
+          }
+          URL.revokeObjectURL(thumbDataUrl);
+        } catch { /* ignore thumbnail upload errors */ }
+      }
+
       setVideos(prev => [...prev, {
         id: Date.now().toString(),
         titre: newTitle,
@@ -80,6 +148,7 @@ export function VideoPage() {
         date: new Date().toISOString().split('T')[0],
         localUrl: urlData.publicUrl,
         videoType: 'local',
+        thumbnailUrl: finalThumbUrl,
       }]);
       setUploadProgress(100);
       setUploading(false);
@@ -208,14 +277,17 @@ export function VideoPage() {
                     </div>
                   )}
                 </div>
-                {uploading && (
+                {(uploading || generatingThumb) && (
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> Upload en cours...</span>
-                      <span>{uploadProgress}%</span>
+                      <span className="flex items-center gap-1">
+                        <Loader2 size={12} className="animate-spin" />
+                        {generatingThumb ? '🎨 Génération miniature IA...' : 'Upload en cours...'}
+                      </span>
+                      <span>{generatingThumb ? '90%' : `${uploadProgress}%`}</span>
                     </div>
                     <div className="w-full bg-secondary rounded-full h-2">
-                      <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                      <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: generatingThumb ? '90%' : `${uploadProgress}%` }} />
                     </div>
                   </div>
                 )}
@@ -247,9 +319,18 @@ export function VideoPage() {
           <div key={video.id} className="glass-card-hover overflow-hidden animate-slide-up" style={{ animationDelay: `${i * 0.05}s` }}>
             <div className="relative cursor-pointer group" onClick={() => setSelectedVideo(video.id)}>
               {video.videoType === 'local' ? (
-                <div className="w-full aspect-video bg-secondary flex items-center justify-center">
-                  <FileVideo size={40} className="text-primary/50" />
-                </div>
+                video.thumbnailUrl ? (
+                  <img
+                    src={video.thumbnailUrl}
+                    alt={video.titre}
+                    className="w-full aspect-video object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full aspect-video bg-secondary flex items-center justify-center">
+                    <FileVideo size={40} className="text-primary/50" />
+                  </div>
+                )
               ) : (
                 <img
                   src={`https://img.youtube.com/vi/${video.youtubeId}/hqdefault.jpg`}

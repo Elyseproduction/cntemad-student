@@ -556,12 +556,7 @@ export function CommunityPage() {
                             <Reply size={14} /> Répondre
                           </button>
                           {/* Copy */}
-                          {msg.type === 'voice' && msg.image_url && !isDeleted && (
-                        <div className={`px-3 py-2 ${isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary'} rounded-2xl`}>
-                          <audio controls src={msg.image_url} className="max-w-[220px] h-8" preload="metadata" style={{ accentColor: '#6C63FF' }} />
-                        </div>
-                      )}
-                      {msg.type === 'text' && (
+                          {msg.type === 'text' && (
                             <button onClick={() => copyMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
                               <Copy size={14} /> Copier
                             </button>
@@ -625,6 +620,18 @@ export function CommunityPage() {
                             <p className="text-xs text-muted-foreground">Cliquer pour télécharger</p>
                           </div>
                           <Download size={16} className="text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      )}
+                      {msg.type === 'voice' && msg.image_url && (
+                        <div className={`px-3 py-2.5 ${isMe ? 'bg-primary/90' : 'bg-secondary'} rounded-2xl flex items-center gap-2`}>
+                          <span className="text-lg">🎤</span>
+                          <audio
+                            controls
+                            src={msg.image_url}
+                            preload="metadata"
+                            className="flex-1 h-8 min-w-0"
+                            style={{ accentColor: '#6C63FF', maxWidth: '200px' }}
+                          />
                         </div>
                       )}
                       {msg.type === 'text' && (

@@ -227,52 +227,74 @@ export function CommunityPage() {
 
   const formatDuration = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
+  // Detect best supported audio MIME type (webm Android/PC, mp4 iOS Safari)
+  const getAudioMime = () => {
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+    for (const t of types) {
+      if (MediaRecorder.isTypeSupported(t)) return t;
+    }
+    return '';
+  };
+
   const startRecording = async () => {
+    if (isRecording) { stopRecording(); return; } // toggle
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+      const mimeType = getAudioMime();
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mr;
       audioChunksRef.current = [];
-      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+
+      // timeslice=100ms : collecte les données toutes les 100ms → fiable sur Android
+      mr.ondataavailable = e => { if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data); };
       mr.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await uploadVoiceMessage(blob);
+        if (audioChunksRef.current.length === 0) {
+          toast({ title: 'Erreur', description: 'Aucun audio enregistré.', variant: 'destructive' });
+          return;
+        }
+        const blob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' });
+        await uploadVoiceMessage(blob, mimeType);
       };
-      mr.start();
+
+      mr.start(100); // timeslice important pour Android !
       setIsRecording(true);
       setRecordDuration(0);
       recordTimerRef.current = setInterval(() => setRecordDuration(p => p + 1), 1000);
-    } catch {
-      alert("Autorisez l'accès au microphone pour enregistrer un message vocal.");
+    } catch (err: any) {
+      toast({ title: 'Microphone refusé', description: "Autorisez l'accès au microphone dans votre navigateur.", variant: 'destructive' });
     }
   };
 
   const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
+    if (!mediaRecorderRef.current) return;
+    if (mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop(); // triggers onstop → upload
+    }
     if (recordTimerRef.current) clearInterval(recordTimerRef.current);
     setIsRecording(false);
     setRecordDuration(0);
   };
 
   const cancelRecording = () => {
-    if (mediaRecorderRef.current?.state === 'recording') {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.ondataavailable = null;
       mediaRecorderRef.current.onstop = null;
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream?.getTracks().forEach(t => t.stop());
+      try { (mediaRecorderRef.current as any).stream?.getTracks().forEach((t: any) => t.stop()); } catch {}
     }
-    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
     audioChunksRef.current = [];
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
     setIsRecording(false);
     setRecordDuration(0);
   };
 
-  const uploadVoiceMessage = async (blob: Blob) => {
+  const uploadVoiceMessage = async (blob: Blob, mimeType?: string) => {
     setUploading(true);
-    const fileName = `voice-${Date.now()}.webm`;
-    const { error } = await supabase.storage.from('community-media').upload(fileName, blob, { contentType: 'audio/webm' });
-    if (error) { toast({ title: 'Erreur', description: error.message, variant: 'destructive' }); setUploading(false); return; }
+    const ext = (mimeType || '').includes('mp4') ? 'mp4' : (mimeType || '').includes('ogg') ? 'ogg' : 'webm';
+    const fileName = `voice-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('community-media').upload(fileName, blob, { contentType: mimeType || 'audio/webm' });
+    if (error) { toast({ title: 'Erreur upload vocal', description: error.message, variant: 'destructive' }); setUploading(false); return; }
     const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
     await supabase.from('community_messages').insert({
       auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
@@ -762,12 +784,10 @@ export function CommunityPage() {
             </button>
           ) : (
             <button
-              onTouchStart={!isMobile ? undefined : startRecording}
-              onTouchEnd={!isMobile ? undefined : stopRecording}
-              onClick={!isMobile ? (isRecording ? stopRecording : startRecording) : undefined}
+              onClick={startRecording}
               disabled={uploading}
-              className={`p-2 rounded-full transition-colors shrink-0 ${isRecording ? 'text-red-500 bg-red-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'} disabled:opacity-50`}
-              title={isRecording ? 'Arrêter' : 'Message vocal'}
+              className={`p-2 rounded-full transition-colors shrink-0 ${isRecording ? 'text-red-500 bg-red-500/10 animate-pulse' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'} disabled:opacity-50`}
+              title={isRecording ? 'Appuyez pour envoyer' : 'Message vocal — appuyez pour démarrer'}
             >
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
             </button>

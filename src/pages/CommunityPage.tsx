@@ -716,7 +716,7 @@ export function CommunityPage() {
       )}
 
       {/* Input */}
-      <div className="sticky bottom-0 flex flex-col border-t border-border bg-background z-10 md:pb-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))]" style={{ flexShrink: 0 }}>
+      <div className="sticky bottom-0 flex flex-col border-t border-border bg-background z-10 pb-2" style={{ flexShrink: 0 }}>
         <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
 
         {/* Recording indicator */}

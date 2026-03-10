@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code } from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code, Mic, MicOff, StopCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,6 +45,11 @@ export function CommunityPage() {
   const [showMentions, setShowMentions] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
   const [mentionIndex, setMentionIndex] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -232,6 +237,87 @@ export function CommunityPage() {
     if (notified.length > 0) {
       toast({ title: '📢 Mention envoyée', description: `${notified.join(', ')} sera notifié(e)` });
     }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      setRecordingDuration(0);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        await uploadVoiceMessage(audioBlob);
+      };
+
+      mediaRecorder.start(100);
+      setIsRecording(true);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+    } catch {
+      toast({ title: 'Microphone inaccessible', description: 'Autorisez l'accès au micro.', variant: 'destructive' });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      setRecordingDuration(0);
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.ondataavailable = null;
+      mediaRecorderRef.current.onstop = null;
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream?.getTracks().forEach(t => t.stop());
+    }
+    setIsRecording(false);
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    setRecordingDuration(0);
+    audioChunksRef.current = [];
+  };
+
+  const uploadVoiceMessage = async (audioBlob: Blob) => {
+    setUploading(true);
+    shouldAutoScroll.current = true;
+    const fileName = `voice-${Date.now()}-${Math.random().toString(36).slice(2)}.webm`;
+    const { error: uploadError } = await supabase.storage.from('community-media').upload(fileName, audioBlob);
+    if (uploadError) {
+      toast({ title: 'Erreur upload', description: uploadError.message, variant: 'destructive' });
+      setUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
+    await supabase.from('community_messages').insert({
+      auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
+      contenu: '🎤 Message vocal', type: 'audio',
+      image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
+    });
+    setUploading(false);
+  };
+
+  const formatDuration = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
   };
 
   const sendMessage = async () => {
@@ -558,6 +644,15 @@ export function CommunityPage() {
                           </button>
                         </div>
                       )}
+                      {msg.type === 'audio' && msg.image_url && (
+                        <div className={`p-3 rounded-2xl ${isMe ? 'bg-primary' : 'bg-secondary'}`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Mic size={14} className={isMe ? 'text-primary-foreground/80' : 'text-primary'} />
+                            <span className={`text-xs font-medium ${isMe ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>Message vocal</span>
+                          </div>
+                          <audio src={msg.image_url} controls className="w-full max-w-[260px] h-8 rounded-lg" preload="metadata" />
+                        </div>
+                      )}
                       {msg.type === 'file' && msg.image_url && (
                         <div className="p-3 bg-secondary rounded-2xl flex items-center gap-3 group cursor-pointer" onClick={() => handleDownload(msg.image_url!, 'file')}>
                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -681,27 +776,50 @@ export function CommunityPage() {
       )}
 
       {/* Input */}
-       <div className="sticky bottom-0 flex items-center gap-2 py-2 border-t border-border bg-background z-10 md:pb-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))]" style={{ flexShrink: 0 }}>
-        <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
-        <div className="flex items-center shrink-0">
-          <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-            <Smile size={20} />
-          </button>
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
-            <Paperclip size={20} />
-          </button>
+       <div className="sticky bottom-0 flex flex-col border-t border-border bg-background z-10 md:pb-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))]" style={{ flexShrink: 0 }}>
+        {/* Recording indicator */}
+        {isRecording && (
+          <div className="flex items-center gap-3 px-4 py-2 bg-destructive/10 border-b border-destructive/20 animate-fade-in">
+            <span className="w-2.5 h-2.5 rounded-full bg-destructive animate-pulse shrink-0" />
+            <span className="text-sm font-medium text-destructive flex-1">Enregistrement... {formatDuration(recordingDuration)}</span>
+            <button onClick={cancelRecording} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted transition-colors">
+              Annuler
+            </button>
+          </div>
+        )}
+        <div className="flex items-center gap-2 py-2">
+          <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
+          <div className="flex items-center shrink-0">
+            <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              <Smile size={20} />
+            </button>
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading || isRecording} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
+              <Paperclip size={20} />
+            </button>
+          </div>
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleInputKeyDown}
+            disabled={isRecording}
+            placeholder={isRecording ? 'Enregistrement en cours...' : replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
+            className="flex-1 min-w-0 px-4 py-2 rounded-full bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm disabled:opacity-50"
+          />
+          {input.trim() ? (
+            <button onClick={sendMessage} className="p-2 rounded-full text-primary hover:bg-secondary transition-colors shrink-0">
+              <Send size={20} />
+            </button>
+          ) : isRecording ? (
+            <button onClick={stopRecording} className="p-2 rounded-full bg-destructive text-white hover:bg-destructive/80 transition-colors shrink-0 animate-pulse">
+              <StopCircle size={20} />
+            </button>
+          ) : (
+            <button onClick={startRecording} disabled={uploading} className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-secondary transition-colors shrink-0 disabled:opacity-50">
+              <Mic size={20} />
+            </button>
+          )}
         </div>
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={handleInputChange}
-          onKeyDown={handleInputKeyDown}
-          placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
-          className="flex-1 min-w-0 px-4 py-2 rounded-full bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm"
-        />
-        <button onClick={sendMessage} disabled={!input.trim()} className="p-2 rounded-full text-primary hover:bg-secondary transition-colors disabled:opacity-30 shrink-0">
-          <Send size={20} />
-        </button>
       </div>
 
       {/* Fullscreen preview */}

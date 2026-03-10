@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Camera, Check, LogOut, AlertCircle,
   ImagePlus, Trash2, Calendar, MessageSquare,
-  ShieldCheck, Code, ChevronRight, X,
+  ShieldCheck, Code, ChevronRight,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -24,7 +24,7 @@ async function compressImage(file: File, maxPx = 512, quality = 0.85): Promise<F
     img.onload = () => {
       URL.revokeObjectURL(url);
       const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-      const w = Math.round(img.width  * scale);
+      const w = Math.round(img.width * scale);
       const h = Math.round(img.height * scale);
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
@@ -54,7 +54,6 @@ export function ProfileMenu() {
   const [msgCount,       setMsgCount]       = useState<number | null>(null);
   const [uploading,      setUploading]      = useState(false);
 
-  // Fermer le photo-sheet quand le profil se ferme
   useEffect(() => { if (!open) setShowPhotoSheet(false); }, [open]);
 
   useEffect(() => {
@@ -158,11 +157,11 @@ export function ProfileMenu() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      {/* Bouton déclencheur dans le header */}
+      {/* ── Trigger ── */}
       <SheetTrigger asChild>
         <button className="flex items-center gap-2 rounded-full hover:bg-secondary/80 transition-colors pr-2 pl-1 py-1" aria-label="Ouvrir le profil">
           {profile.avatar_url
-            ? <img src={profile.avatar_url} alt="Photo de profil" className="w-8 h-8 rounded-full object-cover border-2 border-border" />
+            ? <img src={profile.avatar_url} alt="Profil" className="w-8 h-8 rounded-full object-cover border-2 border-border" />
             : <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center border-2 border-border text-primary font-bold text-sm">{initials}</div>
           }
           <span className="text-sm font-medium text-foreground hidden sm:inline max-w-[100px] truncate">
@@ -171,90 +170,89 @@ export function ProfileMenu() {
         </button>
       </SheetTrigger>
 
-      <SheetContent side="right" className="w-full sm:w-96 flex flex-col p-0 overflow-hidden">
+      {/* ── Sheet ── */}
+      <SheetContent side="right" className="w-full sm:w-96 p-0 flex flex-col overflow-hidden">
         <SheetHeader className="sr-only"><SheetTitle>Mon profil</SheetTitle></SheetHeader>
 
-        <div className="flex-1 overflow-y-auto">
-
-          {/* ── Photo-sheet intégré ── */}
-          {showPhotoSheet && (
+        {/* ══ Photo-sheet overlay : ENFANT DIRECT du SheetContent (position:absolute fonctionne ici) ══ */}
+        {showPhotoSheet && (
+          <div
+            className="absolute inset-0 z-30 flex flex-col justify-end"
+            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }}
+            onClick={() => setShowPhotoSheet(false)}
+          >
+            <style>{`@keyframes suSlideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
             <div
-              className="absolute inset-0 z-[10] flex flex-col justify-end"
-              style={{ background: 'rgba(0,0,0,0.55)' }}
-              onClick={() => setShowPhotoSheet(false)}
+              className="bg-card rounded-t-3xl border-t border-border"
+              style={{
+                animation: 'suSlideUp .22s ease',
+                paddingBottom: 'max(24px, env(safe-area-inset-bottom))',
+              }}
+              onClick={e => e.stopPropagation()}
             >
-              <style>{`@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
-              <div
-                className="bg-card rounded-t-3xl border-t border-border flex flex-col"
-                style={{
-                  animation: 'slideUp .2s ease',
-                  paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
-                  maxHeight: '80%',
-                }}
-                onClick={e => e.stopPropagation()}
-              >
-                {/* Handle + titre */}
-                <div className="px-4 pt-4 pb-3 shrink-0">
-                  <div className="w-10 h-1 rounded-full bg-muted mx-auto mb-4" />
-                  <p className="text-center text-sm font-semibold text-foreground">Photo de profil</p>
-                </div>
+              {/* Handle + titre */}
+              <div className="pt-4 pb-3 px-4 text-center">
+                <div className="w-10 h-1 rounded-full bg-muted mx-auto mb-3" />
+                <p className="text-sm font-semibold text-foreground">Photo de profil</p>
+              </div>
 
-                {/* Options scrollables si besoin */}
-                <div className="px-4 space-y-2 overflow-y-auto flex-1">
+              {/* Options */}
+              <div className="px-4 space-y-2">
+                <label className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-secondary cursor-pointer select-none active:opacity-70">
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Camera size={20} className="text-primary" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium text-foreground">Prendre une photo</p>
+                    <p className="text-xs text-muted-foreground">Utiliser l'appareil photo</p>
+                  </div>
+                  <ChevronRight size={16} className="text-muted-foreground shrink-0" />
+                </label>
 
-                  {/* Prendre une photo */}
-                  <label className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-secondary active:bg-secondary/60 transition-colors cursor-pointer select-none">
-                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <Camera size={20} className="text-primary" />
-                    </div>
-                    <div className="text-left flex-1">
-                      <p className="text-sm font-medium text-foreground">Prendre une photo</p>
-                      <p className="text-xs text-muted-foreground">Utiliser l'appareil photo</p>
-                    </div>
-                    <ChevronRight size={16} className="text-muted-foreground shrink-0" />
-                  </label>
+                <label className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-secondary cursor-pointer select-none active:opacity-70">
+                  <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <ImagePlus size={20} className="text-primary" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium text-foreground">Choisir depuis la galerie</p>
+                    <p className="text-xs text-muted-foreground">Toutes vos photos et images</p>
+                  </div>
+                  <ChevronRight size={16} className="text-muted-foreground shrink-0" />
+                </label>
 
-                  {/* Galerie */}
-                  <label className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-secondary active:bg-secondary/60 transition-colors cursor-pointer select-none">
-                    <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <ImagePlus size={20} className="text-primary" />
-                    </div>
-                    <div className="text-left flex-1">
-                      <p className="text-sm font-medium text-foreground">Choisir depuis la galerie</p>
-                      <p className="text-xs text-muted-foreground">Toutes vos photos et images</p>
-                    </div>
-                    <ChevronRight size={16} className="text-muted-foreground shrink-0" />
-                  </label>
-
-                  {/* Supprimer */}
-                  {hasAvatar && (
-                    <button onClick={handleRemoveAvatar} className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-destructive/10 active:bg-destructive/25 transition-colors">
-                      <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                        <Trash2 size={20} className="text-destructive" />
-                      </div>
-                      <div className="text-left flex-1">
-                        <p className="text-sm font-medium text-destructive">Supprimer la photo</p>
-                        <p className="text-xs text-muted-foreground">Revenir à l'initiale du nom</p>
-                      </div>
-                    </button>
-                  )}
-                </div>
-
-                {/* Annuler — toujours visible en bas, séparé */}
-                <div className="px-4 pt-3 shrink-0">
+                {hasAvatar && (
                   <button
-                    onClick={() => setShowPhotoSheet(false)}
-                    className="w-full py-3.5 rounded-2xl bg-muted text-foreground text-sm font-semibold active:bg-muted/60 transition-colors"
+                    onClick={handleRemoveAvatar}
+                    className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-destructive/10 active:opacity-70"
                   >
-                    Annuler
+                    <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                      <Trash2 size={20} className="text-destructive" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium text-destructive">Supprimer la photo</p>
+                      <p className="text-xs text-muted-foreground">Revenir à l'initiale du nom</p>
+                    </div>
                   </button>
-                </div>
+                )}
+              </div>
+
+              {/* Annuler — toujours visible, jamais dans un scroll */}
+              <div className="px-4 pt-3">
+                <button
+                  onClick={() => setShowPhotoSheet(false)}
+                  className="w-full py-3.5 rounded-2xl bg-muted text-foreground text-sm font-semibold active:opacity-60"
+                >
+                  Annuler
+                </button>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
+        {/* ══ Contenu du profil (scrollable) ══ */}
+        <div className="flex-1 overflow-y-auto">
           {/* Bannière */}
           <div className="h-24 w-full bg-gradient-to-br from-primary/50 via-primary/20 to-transparent" />
 

@@ -505,38 +505,64 @@ export function CommunityPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden', maxWidth: '100%' }}>
       {/* Onglets de session */}
-      <div style={{ display: 'flex', gap: '0', overflowX: 'auto', flexShrink: 0, borderBottom: '1px solid var(--border)', background: 'var(--background)', scrollbarWidth: 'none' }}>
-        {sessions.map(session => {
-          const isActive = activeChannel === session.id;
-          return (
-            <button
-              key={session.id}
-              onClick={() => setActiveChannel(session.id)}
-              style={{
-                padding: '10px 14px',
-                fontSize: '13px',
-                fontWeight: isActive ? 600 : 400,
-                whiteSpace: 'nowrap',
-                border: 'none',
-                borderBottom: isActive ? `2px solid ${session.couleur}` : '2px solid transparent',
-                color: isActive ? session.couleur : 'var(--muted-foreground)',
-                background: isActive ? session.couleur + '10' : 'transparent',
-                cursor: 'pointer',
-                flexShrink: 0,
-                transition: 'all 0.15s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <span>{session.icone}</span>
-              <span>{session.nom}</span>
-              {isActive && (
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: session.couleur, flexShrink: 0, display: 'inline-block' }} />
-              )}
-            </button>
-          );
-        })}
+      <div style={{ flexShrink: 0, background: 'var(--background)', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', padding: '8px 12px', scrollbarWidth: 'none' }}>
+          {sessions.map(session => {
+            const isActive = activeChannel === session.id;
+            const msgCount = messages.filter(m => (m.channel_id || 'default') === session.id).length;
+            return (
+              <button
+                key={session.id}
+                onClick={() => setActiveChannel(session.id)}
+                title={`Rejoindre le salon ${session.nom}`}
+                className={`transition-all duration-200 ${isActive ? '' : 'hover:scale-105 active:scale-95'}`}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '13px',
+                  fontWeight: isActive ? 700 : 500,
+                  whiteSpace: 'nowrap',
+                  border: isActive
+                    ? `2px solid ${session.couleur}`
+                    : '2px solid var(--border)',
+                  borderRadius: '999px',
+                  color: isActive ? session.couleur : 'var(--muted-foreground)',
+                  background: isActive
+                    ? `linear-gradient(135deg, ${session.couleur}22, ${session.couleur}10)`
+                    : 'var(--secondary)',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: isActive
+                    ? `0 0 0 3px ${session.couleur}25, 0 2px 8px ${session.couleur}30`
+                    : '0 1px 3px rgba(0,0,0,0.2)',
+                  transform: isActive ? 'translateY(-1px)' : undefined,
+                }}
+              >
+                <span style={{ fontSize: '15px', lineHeight: 1 }}>{session.icone}</span>
+                <span>{session.nom}</span>
+                {msgCount > 0 && !isActive && (
+                  <span style={{
+                    fontSize: '10px', fontWeight: 700, minWidth: '18px', height: '18px',
+                    borderRadius: '999px', background: session.couleur + '30',
+                    color: session.couleur, display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', padding: '0 4px',
+                  }}>
+                    {msgCount > 99 ? '99+' : msgCount}
+                  </span>
+                )}
+                {isActive && (
+                  <span style={{
+                    width: '7px', height: '7px', borderRadius: '50%',
+                    background: session.couleur, flexShrink: 0,
+                    boxShadow: `0 0 6px ${session.couleur}`,
+                  }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Barre "en ligne" */}

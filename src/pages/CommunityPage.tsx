@@ -745,7 +745,14 @@ export function CommunityPage() {
       )}
 
       {/* Input */}
-      <div className="sticky bottom-0 flex flex-col border-t border-border bg-background z-10 pb-2" style={{ flexShrink: 0 }}>
+      <div className="sticky bottom-0 flex flex-col border-t border-border bg-background z-10"
+        style={{
+          flexShrink: 0,
+          paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+          paddingLeft: 'max(4px, env(safe-area-inset-left))',
+          paddingRight: 'max(4px, env(safe-area-inset-right))',
+        }}
+      >
         <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
 
         {/* Recording indicator */}
@@ -765,8 +772,8 @@ export function CommunityPage() {
           </div>
         )}
 
-        <div className="flex items-end gap-2 py-2 px-1">
-          <div className="flex items-center shrink-0">
+        <div className="flex items-end gap-1.5 py-2 px-2 w-full">
+          <div className="flex items-center shrink-0 gap-0.5">
             <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
               <Smile size={20} />
             </button>
@@ -781,22 +788,22 @@ export function CommunityPage() {
             onKeyDown={handleInputKeyDown}
             rows={1}
             placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
-            className="flex-1 min-w-0 px-4 py-2 rounded-2xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm resize-none overflow-hidden"
+            className="flex-1 min-w-0 w-0 px-3 py-2 rounded-2xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm resize-none overflow-hidden"
             style={{ maxHeight: '120px' }}
             onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }}
           />
           {input.trim() ? (
-            <button onClick={sendMessage} className="p-2 rounded-full text-primary hover:bg-secondary transition-colors shrink-0">
-              <Send size={20} />
+            <button onClick={sendMessage} className="p-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0 ml-0.5">
+              <Send size={18} />
             </button>
           ) : (
             <button
               onClick={startRecording}
               disabled={uploading}
-              className={`p-2 rounded-full transition-colors shrink-0 ${isRecording ? 'text-red-500 bg-red-500/10 animate-pulse' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'} disabled:opacity-50`}
+              className={`p-2.5 rounded-full transition-colors shrink-0 ml-0.5 ${isRecording ? 'text-red-500 bg-red-500/10 animate-pulse' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'} disabled:opacity-50`}
               title={isRecording ? 'Appuyez pour envoyer' : 'Message vocal — appuyez pour démarrer'}
             >
-              {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+              {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
             </button>
           )}
         </div>

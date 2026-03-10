@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 import { useApp, Subject, Chapter, Session, DEFAULT_SESSION } from '@/contexts/AppContext';
-import { ArrowLeft, Plus, Trash2, Search, ChevronRight, Upload, CheckCircle, RotateCcw, BookOpen, FileUp, Loader2, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Search, ChevronRight, Upload, CheckCircle, RotateCcw, BookOpen, FileUp, Loader2, FolderOpen, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -183,6 +183,51 @@ function CreateSubjectModal({ open, onClose, onCreate, sessions, currentSessionI
   );
 }
 
+
+// ── Rename Session Modal ──────────────────────────────────────────────────────
+function RenameSessionModal({ open, onClose, session, onRename }: {
+  open: boolean; onClose: () => void;
+  session: Session | null;
+  onRename: (id: string, nom: string, couleur: string, icone: string) => void;
+}) {
+  const [nom, setNom] = useState(session?.nom || '');
+  const [couleur, setCouleur] = useState(session?.couleur || '#6C63FF');
+  const [icone, setIcone] = useState(session?.icone || '📂');
+  const icons = ['📂', '🎓', '🔬', '🏛️', '📐', '🌍', '🎨', '⚕️', '⚙️', '📊', '🧬', '🏗️', '💻', '📘'];
+
+  // Sync with session prop when it changes
+  useState(() => { if (session) { setNom(session.nom); setCouleur(session.couleur); setIcone(session.icone); } });
+
+  if (!open || !session) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative glass-card p-6 max-w-md w-full mx-4 animate-scale-in">
+        <h2 className="font-heading font-bold text-xl mb-4">Modifier la session</h2>
+        <div className="space-y-4">
+          <input value={nom} onChange={e => setNom(e.target.value)} placeholder="Nom de la session" className="w-full px-4 py-3 rounded-lg bg-secondary border border-border focus:border-primary outline-none text-foreground" />
+          <div>
+            <label className="text-sm text-muted-foreground mb-2 block">Couleur</label>
+            <input type="color" value={couleur} onChange={e => setCouleur(e.target.value)} className="w-12 h-10 rounded cursor-pointer" />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground mb-2 block">Icône</label>
+            <div className="flex flex-wrap gap-2">
+              {icons.map(ic => (
+                <button key={ic} onClick={() => setIcone(ic)} className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${icone === ic ? 'bg-primary/20 ring-2 ring-primary' : 'bg-secondary hover:bg-muted'}`}>{ic}</button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 py-2 rounded-lg bg-secondary text-foreground hover:bg-muted transition-colors">Annuler</button>
+            <button onClick={() => { if (nom.trim()) { onRename(session.id, nom, couleur, icone); onClose(); } }} className="flex-1 py-2 rounded-lg gradient-bg text-primary-foreground font-medium hover:opacity-90">Enregistrer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Import Course Modal ───────────────────────────────────────────────────────
 function ImportCourseModal({ open, onClose, subjectName, onImport }: { open: boolean; onClose: () => void; subjectName: string; onImport: (chapter: Chapter) => void }) {
   const [loading, setLoading] = useState(false);
@@ -256,6 +301,8 @@ function ImportCourseModal({ open, onClose, subjectName, onImport }: { open: boo
   );
 }
 
+
+// ── Rename Session Modal ──────────────────────────────────────────────────────
 // ── Main CoursesPage ──────────────────────────────────────────────────────────
 export function CoursesPage() {
   const { subjects, setSubjects, sessions, setSessions, isAdmin, setActiveTab } = useApp();
@@ -267,6 +314,7 @@ export function CoursesPage() {
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [search, setSearch] = useState('');
   const [showCreateSession, setShowCreateSession] = useState(false);
+  const [renameSession, setRenameSession] = useState<Session | null>(null);
   const [showCreateSubject, setShowCreateSubject] = useState(false);
   const [showCreateChapter, setShowCreateChapter] = useState(false);
   const [showImportCourse, setShowImportCourse] = useState(false);
@@ -302,9 +350,14 @@ export function CoursesPage() {
     return map;
   }, [subjects]);
 
+  const handleRenameSession = (id: string, nom: string, couleur: string, icone: string) => {
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, nom, couleur, icone } : s));
+  };
+
   const handleCreateSession = (nom: string, couleur: string, icone: string) => {
     setSessions(prev => [...prev, { id: Date.now().toString(), nom, couleur, icone }]);
   };
+
 
   const handleDeleteSession = (id: string) => {
     if (id === 'default') { toast({ title: 'Impossible', description: 'La session Informatique ne peut pas être supprimée.', variant: 'destructive' }); return; }
@@ -534,11 +587,7 @@ export function CoursesPage() {
           <span className="text-foreground">{currentSession?.nom}</span>
         </div>
 
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">{currentSession?.icone}</span>
-            <h1 className="font-heading font-bold text-2xl">{currentSession?.nom}</h1>
-          </div>
+        <div className="flex items-center justify-end mb-4 flex-wrap gap-2">
           {isAdmin && (
             <div className="flex gap-2 flex-wrap">
               <button onClick={() => setShowCreateSubject(true)} className="px-4 py-2 rounded-lg gradient-bg text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
@@ -596,14 +645,13 @@ export function CoursesPage() {
   // ── Sessions Grid (home) ────────────────────────────────────────────────────
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-        <h1 className="font-heading font-bold text-2xl">📚 Mes cours</h1>
-        {isAdmin && (
+      {isAdmin && (
+        <div className="flex justify-end mb-4">
           <button onClick={() => setShowCreateSession(true)} className="px-4 py-2 rounded-lg gradient-bg text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
             <Plus size={16} /> Nouvelle Session
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sessions.map((session, i) => {
@@ -613,10 +661,19 @@ export function CoursesPage() {
           const learnedChapters = sessionSubs.reduce((acc, s) => acc + s.chapitres.filter(c => c.learned).length, 0);
           const allChapters = sessionSubs.reduce((acc, s) => acc + s.chapitres.length, 0);
           return (
-            <div key={session.id} onClick={() => setSelectedSessionId(session.id)} className="glass-card p-6 cursor-pointer animate-slide-up hover:shadow-md transition-all hover:scale-[1.02]" style={{ animationDelay: `${i * 0.1}s` }}>
+            <div key={session.id} onClick={() => setSelectedSessionId(session.id)} className="glass-card p-6 cursor-pointer animate-slide-up hover:shadow-md transition-all hover:scale-[1.02] relative" style={{ animationDelay: `${i * 0.1}s` }}>
+              {isAdmin && (
+                <button
+                  onClick={e => { e.stopPropagation(); setRenameSession(session); }}
+                  className="absolute top-3 right-3 p-1.5 rounded-lg bg-secondary/80 hover:bg-muted transition-colors z-10"
+                  title="Renommer la session"
+                >
+                  <Pencil size={13} className="text-muted-foreground" />
+                </button>
+              )}
               <div className="flex items-start justify-between mb-4">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl" style={{ backgroundColor: session.couleur + '20' }}>{session.icone}</div>
-                <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground">{count} matière{count > 1 ? 's' : ''}</span>
+                <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground mr-6">{count} matière{count > 1 ? 's' : ''}</span>
               </div>
               <h3 className="font-heading font-bold text-xl mb-1">{session.nom}</h3>
               <p className="text-sm text-muted-foreground mb-4">{totalChapters} chapitre{totalChapters > 1 ? 's' : ''} disponible{totalChapters > 1 ? 's' : ''}</p>
@@ -637,6 +694,7 @@ export function CoursesPage() {
       )}
 
       <CreateSessionModal open={showCreateSession} onClose={() => setShowCreateSession(false)} onCreate={handleCreateSession} />
+      <RenameSessionModal open={!!renameSession} onClose={() => setRenameSession(null)} session={renameSession} onRename={handleRenameSession} />
     </div>
   );
 }

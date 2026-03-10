@@ -287,30 +287,96 @@ export function VideoPage() {
       )}
 
       {/* Session tabs */}
-      {sessions.length > 1 && (
-        <div className="flex gap-0 overflow-x-auto mb-4 border-b border-border" style={{ scrollbarWidth: 'none' }}>
-          <button
-            onClick={() => { setActiveSession('all'); setFilter(''); }}
-            style={{
-              padding: '8px 16px', fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap',
-              border: 'none', borderBottom: activeSession === 'all' ? '2px solid var(--primary)' : '2px solid transparent',
-              color: activeSession === 'all' ? 'var(--primary)' : 'var(--muted-foreground)',
-              background: 'transparent', cursor: 'pointer', flexShrink: 0,
-            }}
-          >🎬 Toutes</button>
-          {sessions.map(session => (
-            <button key={session.id}
-              onClick={() => { setActiveSession(session.id); setFilter(''); }}
-              style={{
-                padding: '8px 16px', fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap',
-                border: 'none', borderBottom: activeSession === session.id ? '2px solid var(--primary)' : '2px solid transparent',
-                color: activeSession === session.id ? 'var(--primary)' : 'var(--muted-foreground)',
-                background: 'transparent', cursor: 'pointer', flexShrink: 0,
-              }}
-            >{session.icone} {session.nom}</button>
-          ))}
+      <div className="mb-5" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', padding: '10px 0 10px', scrollbarWidth: 'none' }}>
+          {/* "Toutes" pill */}
+          {(() => {
+            const isAll = activeSession === 'all';
+            return (
+              <button
+                onClick={() => { setActiveSession('all'); setFilter(''); }}
+                title="Voir toutes les vidéos"
+                className="transition-all duration-200 hover:scale-105 active:scale-95"
+                style={{
+                  padding: '6px 16px', fontSize: '13px', fontWeight: isAll ? 700 : 500,
+                  whiteSpace: 'nowrap', borderRadius: '999px', cursor: 'pointer', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  border: isAll ? '2px solid var(--primary)' : '2px solid var(--border)',
+                  color: isAll ? 'var(--primary)' : 'var(--muted-foreground)',
+                  background: isAll ? 'hsl(var(--primary) / 0.12)' : 'var(--secondary)',
+                  boxShadow: isAll ? '0 0 0 3px hsl(var(--primary) / 0.15), 0 2px 8px hsl(var(--primary) / 0.2)' : '0 1px 3px rgba(0,0,0,0.2)',
+                  transform: isAll ? 'translateY(-1px)' : undefined,
+                }}
+              >
+                <span style={{ fontSize: '15px' }}>🎬</span>
+                <span>Toutes</span>
+                <span style={{
+                  fontSize: '10px', fontWeight: 700, minWidth: '18px', height: '18px',
+                  borderRadius: '999px', background: 'hsl(var(--primary) / 0.2)',
+                  color: 'var(--primary)', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', padding: '0 4px',
+                }}>
+                  {videos.length}
+                </span>
+                {isAll && (
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--primary)', flexShrink: 0, boxShadow: '0 0 6px var(--primary)' }} />
+                )}
+              </button>
+            );
+          })()}
+
+          {sessions.map(session => {
+            const isActive = activeSession === session.id;
+            const sessionVideos = videos.filter(v => {
+              const subs = subjects.filter(s => (s.session_id || 'default') === session.id);
+              const names = new Set(subs.map(s => s.nom));
+              return !v.matiere || names.has(v.matiere);
+            }).length;
+            return (
+              <button
+                key={session.id}
+                onClick={() => { setActiveSession(session.id); setFilter(''); }}
+                title={`Vidéos de la session ${session.nom}`}
+                className="transition-all duration-200 hover:scale-105 active:scale-95"
+                style={{
+                  padding: '6px 14px', fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                  whiteSpace: 'nowrap', borderRadius: '999px', cursor: 'pointer', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  border: isActive ? `2px solid ${session.couleur}` : '2px solid var(--border)',
+                  color: isActive ? session.couleur : 'var(--muted-foreground)',
+                  background: isActive
+                    ? `linear-gradient(135deg, ${session.couleur}22, ${session.couleur}10)`
+                    : 'var(--secondary)',
+                  boxShadow: isActive
+                    ? `0 0 0 3px ${session.couleur}25, 0 2px 8px ${session.couleur}30`
+                    : '0 1px 3px rgba(0,0,0,0.2)',
+                  transform: isActive ? 'translateY(-1px)' : undefined,
+                }}
+              >
+                <span style={{ fontSize: '15px', lineHeight: 1 }}>{session.icone}</span>
+                <span>{session.nom}</span>
+                {sessionVideos > 0 && (
+                  <span style={{
+                    fontSize: '10px', fontWeight: 700, minWidth: '18px', height: '18px',
+                    borderRadius: '999px', background: session.couleur + '30',
+                    color: session.couleur, display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', padding: '0 4px',
+                  }}>
+                    {sessionVideos}
+                  </span>
+                )}
+                {isActive && (
+                  <span style={{
+                    width: '7px', height: '7px', borderRadius: '50%',
+                    background: session.couleur, flexShrink: 0,
+                    boxShadow: `0 0 6px ${session.couleur}`,
+                  }} />
+                )}
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
 
       {/* Filter bar */}
       {matieres.length > 0 && (

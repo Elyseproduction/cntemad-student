@@ -46,13 +46,14 @@ export function CommunityPage() {
   const [mentionFilter, setMentionFilter] = useState('');
   const [mentionIndex, setMentionIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '');
   const [recordingDuration, setRecordingDuration] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
   const userAvatar = profile?.avatar_url || '';
@@ -172,7 +173,7 @@ export function CommunityPage() {
     .filter(u => !mentionFilter || u.display_name.toLowerCase().includes(mentionFilter.toLowerCase()))
     .map(u => ({ username: u.display_name, avatar_url: u.avatar_url, isOnline: onlineNames.has(u.display_name), is_developer: u.is_developer }));
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setInput(val);
 
@@ -191,7 +192,7 @@ export function CommunityPage() {
   };
 
   const insertMention = (mentionUsername: string) => {
-    const cursorPos = inputRef.current?.selectionStart || input.length;
+    const cursorPos = (inputRef.current?.selectionStart) ?? input.length;
     const textBeforeCursor = input.slice(0, cursorPos);
     const textAfterCursor = input.slice(cursorPos);
     const newBefore = textBeforeCursor.replace(/@(\w*)$/, `@${mentionUsername} `);
@@ -201,7 +202,7 @@ export function CommunityPage() {
     inputRef.current?.focus();
   };
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (showMentions && filteredMentionUsers.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -223,7 +224,17 @@ export function CommunityPage() {
         return;
       }
     }
-    if (e.key === 'Enter') sendMessage();
+    if (e.key === 'Enter') {
+      if (isMobile) {
+        // Mobile : Enter = saut de ligne (comportement natif)
+        return;
+      } else {
+        // PC : Enter = envoyer, Shift+Enter = saut de ligne
+        if (e.shiftKey) return;
+        e.preventDefault();
+        sendMessage();
+      }
+    }
   };
 
   // Notify mentioned users via toast (for online users)
@@ -470,16 +481,23 @@ export function CommunityPage() {
   };
 
   const renderMentionText = (text: string, isMe: boolean) => {
-    const parts = text.split(/(@\w+)/g);
-    return parts.map((part, i) => {
-      if (part.match(/^@\w+$/)) {
-        return (
-          <span key={i} className={`font-semibold ${isMe ? 'text-primary-foreground/90 underline' : 'text-primary'}`}>
-            {part}
-          </span>
-        );
-      }
-      return part;
+    return text.split('\n').map((line, lineIdx, arr) => {
+      const parts = line.split(/(@\w+)/g);
+      return (
+        <span key={lineIdx}>
+          {parts.map((part, i) => {
+            if (part.match(/^@\w+$/)) {
+              return (
+                <span key={i} className={`font-semibold ${isMe ? 'text-primary-foreground/90 underline' : 'text-primary'}`}>
+                  {part}
+                </span>
+              );
+            }
+            return part;
+          })}
+          {lineIdx < arr.length - 1 && <br />}
+        </span>
+      );
     });
   };
 
@@ -797,14 +815,21 @@ export function CommunityPage() {
               <Paperclip size={20} />
             </button>
           </div>
-          <input
+          <textarea
             ref={inputRef}
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleInputKeyDown}
             disabled={isRecording}
+            rows={1}
             placeholder={isRecording ? 'Enregistrement en cours...' : replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
-            className="flex-1 min-w-0 px-4 py-2 rounded-full bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm disabled:opacity-50"
+            className="flex-1 min-w-0 px-4 py-2 rounded-2xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm disabled:opacity-50 resize-none overflow-hidden"
+            style={{ maxHeight: '120px', overflowY: input.split('\n').length > 4 ? 'auto' : 'hidden' }}
+            onInput={(e) => {
+              const el = e.currentTarget;
+              el.style.height = 'auto';
+              el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+            }}
           />
           {input.trim() ? (
             <button onClick={sendMessage} className="p-2 rounded-full text-primary hover:bg-secondary transition-colors shrink-0">

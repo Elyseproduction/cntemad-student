@@ -342,9 +342,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setSubjects(newSubjects);
             subjectsRef.current = newSubjects;
 
+            // Ne pas notifier si l'ancienne liste était vide (premier chargement, pas un vrai changement)
+            if (oldSubjects.length === 0) return;
+
             // Detect changes
             const oldIds = new Set(oldSubjects.flatMap(s => s.chapitres.filter(c => c.published).map(c => c.id)));
-            const newIds = new Set(newSubjects.flatMap(s => s.chapitres.filter(c => c.published).map(c => c.id)));
             const oldSubjectIds = new Set(oldSubjects.map(s => s.id));
             const newSubjectIds = new Set(newSubjects.map(s => s.id));
 
@@ -390,6 +392,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const newVideos = record.value as Video[];
             setVideos(newVideos);
             videosRef.current = newVideos;
+
+            // Ne pas notifier si l'ancienne liste était vide (premier chargement)
+            if (oldVideos.length === 0) return;
 
             const oldVideoIds = new Set(oldVideos.map(v => v.id));
             const newVideoIds = new Set(newVideos.map(v => v.id));

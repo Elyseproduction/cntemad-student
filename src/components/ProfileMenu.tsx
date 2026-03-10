@@ -9,6 +9,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
+import { useProfileOpen } from '@/contexts/ProfileOpenContext';
+
 const MAX_PSEUDO = 20;
 
 function charCountColor(len: number): string {
@@ -48,8 +50,14 @@ async function compressImage(file: File, maxPx = 512, quality = 0.85): Promise<F
 export function ProfileMenu() {
   const { user, profile, signOut } = useAuth();
   const { toast } = useToast();
+  const { setIsProfileOpen } = useProfileOpen();
 
-  const [open,           setOpen]           = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    setIsProfileOpen(v);
+  };
   const [pseudo,         setPseudo]         = useState('');
   const [avatarPreview,  setAvatarPreview]  = useState<string | null>(null);
   const [avatarFile,     setAvatarFile]     = useState<File | null>(null);
@@ -61,7 +69,6 @@ export function ProfileMenu() {
   const [uploading,      setUploading]      = useState(false);
 
   useEffect(() => { if (!open) setShowPhotoSheet(false); }, [open]);
-
   useEffect(() => {
     if (open && profile) {
       setPseudo(profile.display_name || '');
@@ -174,7 +181,7 @@ export function ProfileMenu() {
   const hasAvatar = !!(avatarPreview || profile.avatar_url);
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       {/* ── Trigger ── */}
       <SheetTrigger asChild>
         <button className="flex items-center gap-2 rounded-full hover:bg-secondary/80 transition-colors pr-2 pl-1 py-1" aria-label="Ouvrir le profil">

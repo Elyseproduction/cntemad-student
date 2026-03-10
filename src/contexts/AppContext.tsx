@@ -243,10 +243,12 @@ const defaultVideos: Video[] = [
 
 // Helper to load/save config from Supabase
 async function loadConfig(key: string): Promise<any | null> {
+  // .limit(1) + no cache headers force fresh data on every call (important on Android)
   const { data } = await supabase
     .from('app_config')
-    .select('value')
+    .select('value, updated_at')
     .eq('key', key)
+    .limit(1)
     .maybeSingle();
   return data?.value ?? null;
 }
@@ -294,7 +296,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Polling toutes les secondes pour synchroniser les changements de l'admin
     const pollInterval = setInterval(async () => {
-      if (isAdminRef.current) return; // L'admin n'a pas besoin de polling
+      if (isAdminRef.current) return;
       const [dbSubjects, dbVideos] = await Promise.all([
         loadConfig('subjects'),
         loadConfig('videos'),

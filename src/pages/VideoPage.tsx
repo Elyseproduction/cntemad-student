@@ -277,18 +277,14 @@ export function VideoPage() {
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
 
-      {/* Page header */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-        <div>
-          <h1 className="font-heading font-bold text-2xl md:text-3xl">🎬 Vidéothèque</h1>
-          <p className="text-muted-foreground mt-1">{videos.length} vidéo(s) disponible(s)</p>
-        </div>
-        {isAdmin && (
+      {/* Page header — titre supprimé (déjà dans le header Layout) */}
+      {isAdmin && (
+        <div className="flex justify-end mb-2">
           <button onClick={() => setShowAdd(true)} className="px-4 py-2 rounded-lg gradient-bg text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
             <Plus size={16} /> Ajouter une vidéo
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Session tabs */}
       {sessions.length > 1 && (

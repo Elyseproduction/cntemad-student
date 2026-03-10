@@ -34,6 +34,7 @@ async function compressImage(file: File, maxPx = 512, quality = 0.85): Promise<F
         'image/jpeg', quality,
       );
     };
+    // Si le navigateur ne peut pas décoder (ex: HEIC), on envoie le fichier original tel quel
     img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
     img.src = url;
   });
@@ -77,12 +78,7 @@ export function ProfileMenu() {
   }, [open, profile]);
 
   const processFile = useCallback(async (file: File) => {
-    const isImageMime = file.type.startsWith('image/');
-    const isImageExt  = /\.(jpe?g|png|gif|webp|bmp|heic|heif|avif|tiff?)$/i.test(file.name);
-    if (!isImageMime && !isImageExt) {
-      toast({ title: 'Type invalide', description: 'Seules les images sont acceptées.', variant: 'destructive' });
-      return;
-    }
+    // Pas de validation de type : accept="image/*" filtre déjà au niveau de l'OS Android/iOS
     setUploading(true);
     setShowPhotoSheet(false);
     try {
@@ -125,8 +121,9 @@ export function ProfileMenu() {
 
     if (avatarFile) {
       const fileName = `${user.id}-${Date.now()}.jpg`;
+      const contentType = avatarFile.type || 'image/jpeg';
       const { error: uploadError } = await supabase.storage
-        .from('community-media').upload(`avatars/${fileName}`, avatarFile, { contentType: 'image/jpeg', upsert: true });
+        .from('community-media').upload(`avatars/${fileName}`, avatarFile, { contentType, upsert: true });
       if (uploadError) {
         toast({ title: 'Erreur upload', description: uploadError.message, variant: 'destructive' });
         setSaving(false); return;

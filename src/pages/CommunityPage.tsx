@@ -434,18 +434,15 @@ export function CommunityPage() {
                       <span>{formatMessageTime(msg.created_at)}</span>
                       {msg.is_edited && !isDeleted && <span className="italic">(modifié)</span>}
                       
-                      {/* Vues du message */}
-                      {viewers.length > 0 && (
-                        <div className="flex items-center gap-1">
-                          <Eye size={10} />
-                          <span>{viewers.length}</span>
-                          <div className="flex -space-x-1">
-                            {viewers.slice(0, 3).map((v, i) => (
-                              <img key={i} src={v.user.avatar_url} alt="" className="w-4 h-4 rounded-full border border-background" title={`Vu par ${v.user.display_name}`} />
-                            ))}
+                      {/* Reply indicator */}
+                      {msg.reply_to && (() => {
+                        const parent = messages.find(m => m.id === msg.reply_to);
+                        return parent ? (
+                          <div className="text-[10px] text-muted-foreground/70 mb-0.5 italic truncate max-w-[200px]">
+                            ↩ {parent.auteur}: {parent.contenu.slice(0, 40)}
                           </div>
-                        </div>
-                      )}
+                        ) : null;
+                      })()}
                     </div>
                   </div>
 

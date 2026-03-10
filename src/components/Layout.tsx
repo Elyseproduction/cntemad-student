@@ -203,7 +203,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               {sidebarOpen && <span>Installer l'app</span>}
             </button>
           )}
-          {/* Fix bug : libellé correct selon état ouvert/réduit */}
           <button onClick={() => setSidebarOpen(p => !p)}
             title={sidebarOpen ? 'Réduire (Ctrl+B)' : 'Agrandir (Ctrl+B)'}
             className={`nav-item w-full ${!sidebarOpen ? 'justify-center' : ''}`}>
@@ -239,20 +238,44 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className={`animate-fade-in ${
-          activeTab === 'communaute'
-            ? 'h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom))] md:h-[calc(100dvh-4rem)] overflow-hidden touch-none'
-            : 'p-4 md:p-6 pb-24 md:pb-6'
-        }`}>
+        {/*
+          ── Communauté mobile ──────────────────────────────────────────────
+          Hauteur = 100dvh - header(4rem) - nav(3.5rem) - safe-area
+          "flex flex-col" permet à CommunityPage de distribuer :
+            • messages  → flex-1 + overflow-y-auto  (défile)
+            • saisie    → reste collée au bas du conteneur (au-dessus de la nav)
+          ── Autres pages ───────────────────────────────────────────────────
+          Padding classique + pb-24 pour ne pas passer sous la nav
+        */}
+        <main
+          className={`animate-fade-in ${
+            activeTab === 'communaute'
+              ? [
+                  'h-[calc(100dvh-4rem-3.5rem-env(safe-area-inset-bottom))]',
+                  'md:h-[calc(100dvh-4rem)]',
+                  'flex flex-col overflow-hidden touch-none',
+                ].join(' ')
+              : 'p-4 md:p-6 pb-24 md:pb-6'
+          }`}
+        >
           {children}
         </main>
       </div>
 
-      {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-card/90 backdrop-blur-xl border-t border-border flex">
+      {/*
+        ── Mobile bottom nav ─────────────────────────────────────────────────
+        z-[60] : supérieur à z-50 (max shadcn/ui) → toujours visible, même
+        quand CommunityPage rend sa barre de saisie en position fixed/sticky
+      */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-[60] md:hidden bg-card/90 backdrop-blur-xl border-t border-border flex"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         {tabs.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)} aria-label={tab.label}
-            className={`flex-1 flex flex-col items-center py-2.5 transition-colors relative ${activeTab === tab.id ? 'text-primary' : 'text-muted-foreground'}`}>
+            className={`flex-1 flex flex-col items-center py-2.5 min-h-[56px] justify-center transition-colors relative ${
+              activeTab === tab.id ? 'text-primary' : 'text-muted-foreground'
+            }`}>
             <div className="relative">
               <tab.icon size={20} />
               {renderBadge(tab.id)}

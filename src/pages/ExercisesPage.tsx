@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useApp, ExerciseHistory } from '@/contexts/AppContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Brain, RotateCcw, BookOpen, Sparkles, ChevronRight, Trophy, Star, BookMarked, Flame } from 'lucide-react';
+import { Brain, RotateCcw, BookOpen, Sparkles, ChevronRight, Trophy, Star, BookMarked, Flame, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type ExerciseType = 'qcm' | 'vrai_faux' | 'texte_trou' | 'question_ouverte';
@@ -24,8 +24,13 @@ const typeLabels: Record<ExerciseType, { label: string; color: string }> = {
 };
 
 export function ExercisesPage() {
-  const { subjects, exerciseHistory, addExerciseHistory } = useApp();
+  const { subjects, sessions, exerciseHistory, addExerciseHistory } = useApp();
   const { toast } = useToast();
+
+  // Session navigation
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -37,6 +42,30 @@ export function ExercisesPage() {
   const [loading, setLoading] = useState(false);
   const [wrongAnswers, setWrongAnswers] = useState<{ exercise: Exercise; userAnswer: string }[]>([]);
   const [phase, setPhase] = useState<'setup' | 'quiz' | 'results'>('setup');
+
+  const currentSession = useMemo(() =>
+    sessions.find(s => s.id === selectedSessionId) || null,
+    [sessions, selectedSessionId]
+  );
+
+  // Subjects for a given session with at least one published chapter
+  const sessionSubjects = useMemo(() => {
+    if (selectedSessionId === null) return [];
+    const sId = selectedSessionId || 'default';
+    return subjects.filter(s => (s.session_id || 'default') === sId && s.chapitres.some(c => c.published));
+  }, [subjects, selectedSessionId]);
+
+  // Count for session grid
+  const publishedCountBySession = useMemo(() => {
+    const map: Record<string, number> = {};
+    subjects.forEach(s => {
+      if (s.chapitres.some(c => c.published)) {
+        const sid = s.session_id || 'default';
+        map[sid] = (map[sid] || 0) + 1;
+      }
+    });
+    return map;
+  }, [subjects]);
 
   const publishedSubjects = useMemo(() =>
     subjects.filter(s => s.chapitres.some(c => c.published)),
@@ -151,6 +180,10 @@ export function ExercisesPage() {
     setAnswer('');
     setAnswered(false);
     setWrongAnswers([]);
+    setSelectedSubject('');
+    setSelectedChapter('');
+    setSelectedSubjectId(null);
+    setSelectedSessionId(null);
   };
 
   const getEvaluation = () => {
@@ -345,78 +378,195 @@ export function ExercisesPage() {
     );
   }
 
-  // Setup Screen
-  return (
-    <div className="max-w-2xl mx-auto animate-fade-in">
-      <div className="text-center mb-8">
-        <p className="text-muted-foreground">L'IA génère automatiquement les questions nécessaires pour couvrir tout le chapitre</p>
+  // ── Sessions Grid ─────────────────────────────────────────────────────────
+  if (phase === 'setup' && selectedSessionId === null) {
+    return (
+      <div className="max-w-4xl mx-auto animate-fade-in">
+        <div className="text-center mb-8">
+          <p className="text-muted-foreground">Choisissez une session pour accéder aux exercices IA</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sessions.map((session, i) => {
+            const count = publishedCountBySession[session.id] || 0;
+            return (
+              <div
+                key={session.id}
+                onClick={() => setSelectedSessionId(session.id)}
+                className="glass-card p-6 cursor-pointer animate-slide-up hover:shadow-md transition-all hover:scale-[1.02]"
+                style={{ animationDelay: `${i * 0.1}s` }}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl" style={{ backgroundColor: session.couleur + '20' }}>{session.icone}</div>
+                  <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground">{count} matière{count > 1 ? 's' : ''}</span>
+                </div>
+                <h3 className="font-heading font-bold text-xl mb-1">{session.nom}</h3>
+                <p className="text-sm text-muted-foreground">{count} matière{count !== 1 ? 's' : ''} avec exercices</p>
+                <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ backgroundColor: session.couleur, width: count > 0 ? '60%' : '5%' }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* History */}
+        {exerciseHistory.length > 0 && (
+          <div className="glass-card p-6 mt-6">
+            <h3 className="font-heading font-semibold text-lg mb-4">📊 Historique récent</h3>
+            <div className="space-y-2">
+              {exerciseHistory.map((h, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                  <div>
+                    <p className="text-sm font-medium">{h.chapitre}</p>
+                    <p className="text-xs text-muted-foreground">{h.date} • {h.type}</p>
+                  </div>
+                  <span className={`font-bold ${(h.score / h.total) >= 0.7 ? 'text-success' : 'text-destructive'}`}>
+                    {h.score}/{h.total}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+    );
+  }
 
-      <div className="glass-card p-6 space-y-6">
-        {/* Subject */}
-        <div>
-          <label className="text-sm font-medium text-muted-foreground mb-2 block">Matière</label>
-          <select value={selectedSubject} onChange={e => { setSelectedSubject(e.target.value); setSelectedChapter(''); }} className="w-full px-4 py-3 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground">
-            <option value="">Choisir une matière</option>
-            {publishedSubjects.map(s => <option key={s.id} value={s.id}>{s.icone} {s.nom}</option>)}
-          </select>
+  // ── Subjects Grid (inside a session) ──────────────────────────────────────
+  if (phase === 'setup' && selectedSessionId !== null && selectedSubjectId === null) {
+    return (
+      <div className="max-w-4xl mx-auto animate-fade-in">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap">
+          <button onClick={() => setSelectedSessionId(null)} className="hover:text-foreground transition-colors">Sessions</button>
+          <ChevronRight size={14} />
+          <span className="text-foreground">{currentSession?.nom}</span>
         </div>
 
-        {/* Chapter */}
-        <div>
-          <label className="text-sm font-medium text-muted-foreground mb-2 block">Chapitre</label>
-          <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground" disabled={!selectedSubject}>
-            <option value="">Choisir un chapitre</option>
-            {chapters.map(c => <option key={c.id} value={c.id}>{c.titre}</option>)}
-          </select>
-        </div>
-
-        {/* Info box */}
-        {selectedChapter && (
-          <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 animate-fade-in">
-            <p className="text-sm text-primary font-medium flex items-center gap-2">
-              <Brain size={16} />
-              L'IA va analyser le chapitre et générer le nombre exact de questions (mélange QCM, Vrai/Faux, texte à trou et questions ouvertes) pour couvrir tous les concepts.
-            </p>
+        {sessionSubjects.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <Brain size={48} className="mx-auto mb-3 opacity-30" />
+            <p>Aucune matière avec des cours publiés dans cette session</p>
+            <button onClick={() => setSelectedSessionId(null)} className="mt-4 flex items-center gap-2 mx-auto text-sm hover:text-foreground transition-colors">
+              <ArrowLeft size={16} /> Retour aux sessions
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sessionSubjects.map((subject, i) => {
+              const publishedCount = subject.chapitres.filter(c => c.published).length;
+              return (
+                <div
+                  key={subject.id}
+                  onClick={() => {
+                    setSelectedSubjectId(subject.id);
+                    setSelectedSubject(subject.id);
+                    setSelectedChapter('');
+                  }}
+                  className="glass-card p-6 cursor-pointer animate-slide-up hover:shadow-md transition-all hover:scale-[1.02]"
+                  style={{ animationDelay: `${i * 0.1}s` }}
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style={{ backgroundColor: subject.couleur + '20' }}>{subject.icone}</div>
+                    <div>
+                      <h3 className="font-heading font-semibold text-lg">{subject.nom}</h3>
+                      <p className="text-sm text-muted-foreground">{publishedCount} chapitre{publishedCount > 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                  <div className="h-1 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full" style={{ backgroundColor: subject.couleur, width: '100%', opacity: 0.4 }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        <button onClick={handleGenerate} disabled={!selectedSubject || !selectedChapter || loading} className="w-full py-4 rounded-xl gradient-bg text-primary-foreground font-semibold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
-          {loading ? (
-            <div className="flex flex-col items-center gap-2">
-              <div className="flex items-center gap-3">
-                <div className="animate-spin w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full" />
-                <span>{loadingStep}</span>
-              </div>
-              <div className="w-48 h-1.5 rounded-full bg-primary-foreground/20 overflow-hidden">
-                <div className="h-full bg-primary-foreground/60 rounded-full animate-pulse" style={{ width: '60%' }} />
-              </div>
-            </div>
-          ) : (
-            <><Sparkles size={20} /> Générer les exercices</>
-          )}
+        <button onClick={() => setSelectedSessionId(null)} className="flex items-center gap-2 mt-6 text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft size={18} /> Retour aux sessions
         </button>
       </div>
+    );
+  }
 
-      {/* History */}
-      {exerciseHistory.length > 0 && (
-        <div className="glass-card p-6 mt-6">
-          <h3 className="font-heading font-semibold text-lg mb-4">📊 Historique récent</h3>
-          <div className="space-y-2">
-            {exerciseHistory.map((h, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-                <div>
-                  <p className="text-sm font-medium">{h.chapitre}</p>
-                  <p className="text-xs text-muted-foreground">{h.date} • {h.type}</p>
-                </div>
-                <span className={`font-bold ${(h.score / h.total) >= 0.7 ? 'text-success' : 'text-destructive'}`}>
-                  {h.score}/{h.total}
-                </span>
-              </div>
-            ))}
-          </div>
+  // Setup Screen (chapter selection for chosen subject)
+  if (phase === 'setup') {
+    return (
+      <div className="max-w-2xl mx-auto animate-fade-in">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap">
+          <button onClick={() => { setSelectedSessionId(null); setSelectedSubjectId(null); }} className="hover:text-foreground transition-colors">Sessions</button>
+          <ChevronRight size={14} />
+          <button onClick={() => setSelectedSubjectId(null)} className="hover:text-foreground transition-colors">{currentSession?.nom}</button>
+          <ChevronRight size={14} />
+          <span className="text-foreground">{subjects.find(s => s.id === selectedSubjectId)?.nom}</span>
         </div>
-      )}
-    </div>
-  );
+
+        <div className="text-center mb-8">
+          <p className="text-muted-foreground">L'IA génère automatiquement les questions nécessaires pour couvrir tout le chapitre</p>
+        </div>
+
+        <div className="glass-card p-6 space-y-6">
+          {/* Chapter */}
+          <div>
+            <label className="text-sm font-medium text-muted-foreground mb-2 block">Chapitre</label>
+            <select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground">
+              <option value="">Choisir un chapitre</option>
+              {chapters.map(c => <option key={c.id} value={c.id}>{c.titre}</option>)}
+            </select>
+          </div>
+
+          {/* Info box */}
+          {selectedChapter && (
+            <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 animate-fade-in">
+              <p className="text-sm text-primary font-medium flex items-center gap-2">
+                <Brain size={16} />
+                L'IA va analyser le chapitre et générer le nombre exact de questions (mélange QCM, Vrai/Faux, texte à trou et questions ouvertes) pour couvrir tous les concepts.
+              </p>
+            </div>
+          )}
+
+          <button onClick={handleGenerate} disabled={!selectedChapter || loading} className="w-full py-4 rounded-xl gradient-bg text-primary-foreground font-semibold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
+            {loading ? (
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full" />
+                  <span>{loadingStep}</span>
+                </div>
+                <div className="w-48 h-1.5 rounded-full bg-primary-foreground/20 overflow-hidden">
+                  <div className="h-full bg-primary-foreground/60 rounded-full animate-pulse" style={{ width: '60%' }} />
+                </div>
+              </div>
+            ) : (
+              <><Sparkles size={20} /> Générer les exercices</>
+            )}
+          </button>
+        </div>
+
+        <button onClick={() => setSelectedSubjectId(null)} className="flex items-center gap-2 mt-6 text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft size={18} /> Retour aux matières
+        </button>
+
+        {/* History */}
+        {exerciseHistory.length > 0 && (
+          <div className="glass-card p-6 mt-6">
+            <h3 className="font-heading font-semibold text-lg mb-4">📊 Historique récent</h3>
+            <div className="space-y-2">
+              {exerciseHistory.map((h, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                  <div>
+                    <p className="text-sm font-medium">{h.chapitre}</p>
+                    <p className="text-xs text-muted-foreground">{h.date} • {h.type}</p>
+                  </div>
+                  <span className={`font-bold ${(h.score / h.total) >= 0.7 ? 'text-success' : 'text-destructive'}`}>
+                    {h.score}/{h.total}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 }

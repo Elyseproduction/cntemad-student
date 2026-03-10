@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
 import { GoogleLoginButton } from '@/components/GoogleLoginButton';
+import { useApp } from '@/contexts/AppContext';
 
 interface Message {
   id: string;
@@ -19,6 +20,7 @@ interface Message {
   is_deleted?: boolean;
   is_edited?: boolean;
   reply_to?: string | null;
+  channel_id?: string;
 }
 
 const reactionEmojis = ['👍', '❤️', '😂', '🔥'];
@@ -54,6 +56,9 @@ export function CommunityPage() {
   const [recordDuration, setRecordDuration] = useState(0);
   const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  const { sessions } = useApp();
+  const [activeChannel, setActiveChannel] = useState('default');
 
   const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
   const userAvatar = profile?.avatar_url || '';
@@ -310,6 +315,7 @@ export function CommunityPage() {
     await supabase.from('community_messages').insert({
       auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
       contenu: '🎤 Message vocal', type: 'voice', image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
+      channel_id: activeChannel,
     });
     setUploading(false);
   };
@@ -347,6 +353,7 @@ export function CommunityPage() {
       reactions: {},
       reply_to: replyId,
       user_id: user?.id,
+      channel_id: activeChannel,
     });
   };
 
@@ -378,6 +385,7 @@ export function CommunityPage() {
       auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
       contenu: getFileLabel(file), type: fileType,
       image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
+      channel_id: activeChannel,
     });
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -496,6 +504,31 @@ export function CommunityPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden', maxWidth: '100%' }}>
+      {/* Onglets de session */}
+      <div style={{ display: 'flex', gap: '0', overflowX: 'auto', flexShrink: 0, borderBottom: '1px solid var(--border)', background: 'var(--background)', scrollbarWidth: 'none' }}>
+        {sessions.map(session => (
+          <button
+            key={session.id}
+            onClick={() => setActiveChannel(session.id)}
+            style={{
+              padding: '10px 16px',
+              fontSize: '13px',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+              border: 'none',
+              borderBottom: activeChannel === session.id ? '2px solid var(--primary)' : '2px solid transparent',
+              color: activeChannel === session.id ? 'var(--primary)' : 'var(--muted-foreground)',
+              background: 'transparent',
+              cursor: 'pointer',
+              flexShrink: 0,
+              transition: 'color 0.15s',
+            }}
+          >
+            {session.icone} {session.nom}
+          </button>
+        ))}
+      </div>
+
       {/* Barre "en ligne" */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 12px 6px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '999px', background: 'var(--secondary)', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
@@ -520,7 +553,7 @@ export function CommunityPage() {
             <p className="text-sm">Soyez le premier à écrire ! 💬</p>
           </div>
         )}
-        {messages.map((msg) => {
+        {messages.filter(m => (m.channel_id || 'default') === activeChannel).map((msg) => {
           const isMe = msg.auteur === username;
           const isDeleted = msg.is_deleted;
           const replyMsg = getReplyMsg(msg.reply_to);

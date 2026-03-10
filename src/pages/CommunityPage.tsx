@@ -86,7 +86,7 @@ export function CommunityPage() {
         .order('created_at', { ascending: true });
       
       if (error) throw error;
-      setMessages(data?.map(m => ({ ...m, reactions: m.reactions || {} })) || []);
+      setMessages(data?.map(m => ({ ...m, reactions: (m.reactions || {}) as Record<string, string[]> })) || []);
     } catch (err) {
       console.error('❌ Erreur chargement messages:', err);
       toast({ title: 'Erreur', description: 'Impossible de charger les messages', variant: 'destructive' });

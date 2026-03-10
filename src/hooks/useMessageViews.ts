@@ -20,20 +20,31 @@ export function useMessageViews(messageId: string) {
 
     const loadViewers = async () => {
       const { data } = await supabase
-        .from('message_views')
+        .from('message_views' as any)
         .select(`
           user_id,
-          viewed_at,
-          user:profiles!message_views_user_id_fkey (
-            display_name,
-            avatar_url
-          )
+          viewed_at
         `)
         .eq('message_id', messageId)
         .order('viewed_at', { ascending: false });
 
       if (data) {
-        setViewers(data);
+        // Fetch profile info for each viewer
+        const viewerIds = (data as any[]).map((v: any) => v.user_id);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url')
+          .in('id', viewerIds);
+        
+        const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+        setViewers((data as any[]).map((v: any) => ({
+          user_id: v.user_id,
+          viewed_at: v.viewed_at,
+          user: {
+            display_name: profileMap.get(v.user_id)?.display_name || 'Inconnu',
+            avatar_url: profileMap.get(v.user_id)?.avatar_url || null,
+          },
+        })));
       }
     };
 

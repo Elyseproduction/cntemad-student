@@ -263,7 +263,7 @@ export function CommunityPage() {
         setRecordingDuration(prev => prev + 1);
       }, 1000);
     } catch {
-      toast({ title: 'Microphone inaccessible', description: 'Autorisez l'accès au micro.', variant: 'destructive' });
+      toast({ title: 'Microphone inaccessible', description: "Autorisez l'accès au micro.", variant: 'destructive' });
     }
   };
 

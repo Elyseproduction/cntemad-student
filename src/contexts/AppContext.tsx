@@ -84,6 +84,7 @@ interface AppContextType {
   setMessages: React.Dispatch<React.SetStateAction<CommunityMessage[]>>;
   videos: Video[];
   setVideos: React.Dispatch<React.SetStateAction<Video[]>>;
+  dbLoaded: boolean;
   exerciseHistory: ExerciseHistory[];
   addExerciseHistory: (h: ExerciseHistory) => void;
   darkMode: boolean;
@@ -260,9 +261,10 @@ async function saveConfig(key: string, value: any) {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('app_admin') === 'true');
-  const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [messages, setMessages] = useState<CommunityMessage[]>(defaultMessages);
-  const [videos, setVideos] = useState<Video[]>(defaultVideos);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [dbLoaded, setDbLoaded] = useState(false);
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistory[]>([]);
   const [darkMode, setDarkMode] = useState(true);
   const [activeTab, setActiveTab] = useState('cours');
@@ -282,9 +284,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         loadConfig('subjects'),
         loadConfig('videos'),
       ]);
-      if (dbSubjects && Array.isArray(dbSubjects)) setSubjects(dbSubjects);
-      if (dbVideos && Array.isArray(dbVideos)) setVideos(dbVideos);
+      // Use DB data if available, otherwise fall back to defaults
+      setSubjects(dbSubjects && Array.isArray(dbSubjects) && dbSubjects.length > 0 ? dbSubjects : defaultSubjects);
+      setVideos(dbVideos && Array.isArray(dbVideos) && dbVideos.length > 0 ? dbVideos : defaultVideos);
       initialLoadDone.current = true;
+      setDbLoaded(true);
     }
     load();
 
@@ -479,12 +483,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
       subjects, setSubjects,
       messages, setMessages,
       videos, setVideos,
+      dbLoaded,
       exerciseHistory, addExerciseHistory,
       darkMode, toggleDarkMode,
       activeTab, setActiveTab,
       notifications, dismissNotification,
     }}>
-      {children}
+      {!dbLoaded ? (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 99999,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          backgroundColor: 'var(--background, #0f0f1a)',
+          gap: '16px',
+        }}>
+          <div style={{
+            width: '48px', height: '48px',
+            border: '4px solid rgba(108,99,255,0.2)',
+            borderTop: '4px solid #6C63FF',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+          }} />
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Chargement...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      ) : children}
     </AppContext.Provider>
   );
 }

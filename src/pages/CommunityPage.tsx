@@ -7,7 +7,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { VoiceRecorder } from '@/components/VoiceRecorder';
-import { format } from 'date-fns';
 import { useTyping } from '@/hooks/useTyping';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';

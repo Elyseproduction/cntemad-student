@@ -297,8 +297,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'app_config' },
         async (payload) => {
-          // Don't notify if this client is the admin making changes
-          if (isAdminRef.current) return;
+          // Ne pas notifier si c'est cet onglet/appareil qui vient de faire le changement
+          // (on compare juste pour les notifications, mais on met toujours à jour les données)
 
           const record = payload.new as { key: string; value: any } | undefined;
           if (!record) return;
@@ -391,23 +391,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Save subjects to DB when changed (skip initial load)
+  // Save subjects to DB when changed (skip initial load, admin only)
   const subjectsRef = useRef(subjects);
   useEffect(() => {
     if (!initialLoadDone.current) return;
+    if (!isAdmin) return; // Seul l'admin peut écrire dans la DB
     if (subjectsRef.current === subjects) return;
     subjectsRef.current = subjects;
     saveConfig('subjects', subjects);
-  }, [subjects]);
+  }, [subjects, isAdmin]);
 
-  // Save videos to DB when changed
+  // Save videos to DB when changed (admin only)
   const videosRef = useRef(videos);
   useEffect(() => {
     if (!initialLoadDone.current) return;
+    if (!isAdmin) return; // Seul l'admin peut écrire dans la DB
     if (videosRef.current === videos) return;
     videosRef.current = videos;
     saveConfig('videos', videos);
-  }, [videos]);
+  }, [videos, isAdmin]);
 
   // Keep exercise history in localStorage (per-user)
   useEffect(() => {

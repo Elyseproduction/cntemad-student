@@ -77,7 +77,9 @@ export function ProfileMenu() {
   }, [open, profile]);
 
   const processFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) {
+    const isImageMime = file.type.startsWith('image/');
+    const isImageExt  = /\.(jpe?g|png|gif|webp|bmp|heic|heif|avif|tiff?)$/i.test(file.name);
+    if (!isImageMime && !isImageExt) {
       toast({ title: 'Type invalide', description: 'Seules les images sont acceptées.', variant: 'destructive' });
       return;
     }

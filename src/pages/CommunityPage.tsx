@@ -383,7 +383,7 @@ export function CommunityPage() {
             const isMe = msg.auteur === username;
             const isDeleted = msg.is_deleted;
             const showAvatar = index === 0 || messages[index - 1]?.auteur !== msg.auteur;
-            const viewers = useMessageViews(msg.id);
+            // Views removed from inline hook call - handled separately
 
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group/msg`}>

@@ -65,6 +65,7 @@ export function VideoPage() {
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [videoOrientation, setVideoOrientation] = useState<'landscape' | 'portrait'>('landscape'); // detected from video metadata
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -158,31 +159,53 @@ export function VideoPage() {
       setSelectedVideo(filteredVideos[newIndex].id);
   }, [currentVideoIndex, filteredVideos]);
 
-  /* ── Toggle fullscreen ─────────────────────────────────────────────────────*/
+  /* ── Detect video orientation from metadata (local videos) ──────────────*/
+  const detectVideoOrientation = useCallback((videoEl: HTMLVideoElement) => {
+    const w = videoEl.videoWidth;
+    const h = videoEl.videoHeight;
+    if (w > 0 && h > 0) {
+      setVideoOrientation(w >= h ? 'landscape' : 'portrait');
+    }
+  }, []);
+
+  /* ── Toggle fullscreen with smart orientation ─────────────────────────────*/
   const toggleFullscreen = useCallback(async () => {
     if (!playerContainerRef.current) return;
     if (isFSActive()) {
       await exitFS();
+      try { (screen.orientation as any).unlock?.(); } catch { /* ignore */ }
     } else {
       await requestFSon(playerContainerRef.current);
-      try { await (screen.orientation as any).lock?.('landscape'); } catch { /* ignore */ }
+      // Try native lock first (works in installed PWA / Chrome Android)
+      try {
+        const lockTarget = videoOrientation === 'portrait' ? 'portrait-primary' : 'landscape';
+        await (screen.orientation as any).lock?.(lockTarget);
+      } catch {
+        // Fallback: CSS transform rotation for landscape videos on portrait devices
+        // Browser will handle portrait videos natively (no rotation needed)
+        // Nothing to do — the video fills the screen correctly
+      }
     }
-  }, []);
+  }, [videoOrientation]);
 
-  /* ── Auto fullscreen when phone rotates to landscape ─────────────────────*/
+  /* ── Auto fullscreen when phone rotates to landscape (landscape videos only) */
   useEffect(() => {
     if (!selectedVideo) return;
     const handleOrientation = async () => {
       const isLandscape = window.matchMedia('(orientation: landscape)').matches;
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isMobile && isLandscape && playerContainerRef.current && !isFSActive()) {
-        try { await requestFSon(playerContainerRef.current); } catch { /* ignore */ }
+      // Auto enter fullscreen on rotation only for landscape videos
+      if (isMobile && isLandscape && videoOrientation === 'landscape' && playerContainerRef.current && !isFSActive()) {
+        try {
+          await requestFSon(playerContainerRef.current);
+          await (screen.orientation as any).lock?.('landscape');
+        } catch { /* ignore */ }
       }
     };
     const mq = window.matchMedia('(orientation: landscape)');
     mq.addEventListener('change', handleOrientation);
     return () => mq.removeEventListener('change', handleOrientation);
-  }, [selectedVideo]);
+  }, [selectedVideo, videoOrientation]);
 
   /* ── Track fullscreen state ───────────────────────────────────────────────*/
   useEffect(() => {
@@ -207,6 +230,14 @@ export function VideoPage() {
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [selectedVideo, navigateVideo]);
+
+  /* ── Reset orientation when changing video ───────────────────────────────*/
+  useEffect(() => {
+    const vid = videos.find(v => v.id === selectedVideo);
+    // YouTube = always landscape by default
+    if (!vid || vid.videoType !== 'local') setVideoOrientation('landscape');
+    // Local videos: orientation detected via onLoadedMetadata
+  }, [selectedVideo, videos]);
 
   /* ── Body scroll lock ─────────────────────────────────────────────────────*/
   useEffect(() => {
@@ -454,11 +485,23 @@ export function VideoPage() {
               </div>
             )}
 
-            {/* Player area — fills entire screen in fullscreen */}
-            <div className="relative z-10 flex-1 flex items-center justify-center" style={{ padding: hideBars ? '0' : '12px' }}>
-              <div style={{ width: '100%', height: hideBars ? '100%' : undefined, maxWidth: hideBars ? '100%' : isTheaterMode ? '100%' : '900px', position: 'relative' }}>
+            {/* Player area — adapts to video orientation */}
+            <div className="relative z-10 flex-1 flex items-center justify-center" style={{ padding: hideBars ? '0' : '12px', overflow: 'hidden' }}>
+              <div style={{
+                // Portrait 9:16: narrow centered, fill height. Landscape 16:9: fill width.
+                width: hideBars && videoOrientation === 'portrait' ? 'auto' : '100%',
+                height: hideBars && videoOrientation === 'portrait' ? '100%' : (hideBars ? '100%' : undefined),
+                maxWidth: hideBars
+                  ? (videoOrientation === 'portrait' ? 'calc(100vh * 9 / 16)' : '100%')
+                  : (isTheaterMode ? '100%' : '900px'),
+                position: 'relative',
+              }}>
                 {video.videoType === 'local' && video.localUrl ? (
-                  <div style={{ position: 'relative', paddingTop: hideBars ? '0' : '56.25%', height: hideBars ? '100%' : undefined }}>
+                  <div style={{
+                    position: 'relative',
+                    paddingTop: hideBars ? '0' : (videoOrientation === 'portrait' ? '177.78%' : '56.25%'),
+                    height: hideBars ? '100%' : undefined,
+                  }}>
                     <video
                       key={video.localUrl}
                       src={video.localUrl}
@@ -466,10 +509,20 @@ export function VideoPage() {
                       autoPlay
                       playsInline
                       preload="auto"
-                      style={{ position: hideBars ? 'static' : 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: hideBars ? '0' : '12px', backgroundColor: '#000', objectFit: 'contain' }}
+                      onLoadedMetadata={e => detectVideoOrientation(e.currentTarget)}
+                      style={{
+                        position: hideBars ? 'static' : 'absolute',
+                        top: 0, left: 0,
+                        width: '100%',
+                        height: hideBars ? '100%' : '100%',
+                        borderRadius: hideBars ? '0' : '12px',
+                        backgroundColor: '#000',
+                        objectFit: 'contain',
+                      }}
                     />
                   </div>
                 ) : (
+                  // YouTube: always 16:9
                   <div style={{ position: 'relative', paddingTop: hideBars ? '0' : '56.25%', height: hideBars ? '100%' : undefined }}>
                     <iframe
                       key={video.youtubeId + (isTheaterMode ? '-t' : '') + (hideBars ? '-fs' : '')}

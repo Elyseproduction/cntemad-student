@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-const ADMIN_PIN = "1206"; // À remplacer par import.meta.env.VITE_ADMIN_PIN plus tard
 
 // Types
 export interface Section {
@@ -56,9 +55,8 @@ export interface Video {
   youtubeId: string;
   matiere: string;
   date: string;
-  created_at?: string;
-  videoUrl?: string; // URL for locally uploaded videos
-  type?: 'youtube' | 'local';
+  localUrl?: string;   // URL Supabase Storage pour vidéos uploadées depuis PC/Android
+  videoType?: 'youtube' | 'local';
 }
 
 export interface ExerciseHistory {
@@ -423,10 +421,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [exerciseHistory]);
 
   const login = useCallback((password: string) => {
-  if (password === ADMIN_PIN) {
-    setIsAdmin(true);
-    localStorage.setItem('app_admin', 'true');
-    return true;
+    if (password === 'ZahGasy1') {
+      setIsAdmin(true);
+      localStorage.setItem('app_admin', 'true');
+      return true;
     }
     return false;
   }, []);

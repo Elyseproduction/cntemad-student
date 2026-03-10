@@ -51,6 +51,7 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [confirmPw, setConfirmPw] = useState('');
   const [confirmCode, setConfirmCode] = useState('');
   const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [pwError, setPwError] = useState('');
   const [pwSuccess, setPwSuccess] = useState(false);
 
@@ -234,13 +235,18 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
                       {showNewPw ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
-                  <input
-                    type="password"
-                    value={confirmPw}
-                    onChange={e => { setConfirmPw(e.target.value); setPwError(''); }}
-                    placeholder="Confirmer le nouveau mot de passe"
-                    className="w-full px-3 py-2.5 rounded-lg bg-background border border-border focus:border-primary outline-none text-sm text-foreground"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmPw ? 'text' : 'password'}
+                      value={confirmPw}
+                      onChange={e => { setConfirmPw(e.target.value); setPwError(''); }}
+                      placeholder="Confirmer le nouveau mot de passe"
+                      className="w-full px-3 py-2.5 rounded-lg bg-background border border-border focus:border-primary outline-none text-sm text-foreground pr-10"
+                    />
+                    <button type="button" onClick={() => setShowConfirmPw(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showConfirmPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
                   <input
                     type="password"
                     value={confirmCode}
@@ -341,13 +347,18 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
                   {showNewPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
-              <input
-                type="password"
-                value={confirmPw}
-                onChange={e => { setConfirmPw(e.target.value); setPwError(''); }}
-                placeholder="Confirmer le nouveau mot de passe"
-                className="w-full px-3 py-2.5 rounded-lg bg-background border border-border focus:border-primary outline-none text-sm text-foreground"
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPw ? 'text' : 'password'}
+                  value={confirmPw}
+                  onChange={e => { setConfirmPw(e.target.value); setPwError(''); }}
+                  placeholder="Confirmer le nouveau mot de passe"
+                  className="w-full px-3 py-2.5 rounded-lg bg-background border border-border focus:border-primary outline-none text-sm text-foreground pr-10"
+                />
+                <button type="button" onClick={() => setShowConfirmPw(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showConfirmPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
               <input
                 type="password"
                 value={confirmCode}

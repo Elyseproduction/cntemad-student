@@ -258,18 +258,16 @@ export function VideoPage() {
             </div>
 
             {/* Player area */}
-            <div className="relative z-10 flex-1 flex flex-col items-center justify-start p-2 md:p-6 overflow-auto">
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-2 md:p-6 overflow-auto">
               <div className={`w-full transition-all duration-300 ${isTheaterMode ? 'max-w-full' : 'max-w-5xl'}`}>
-                <div className="aspect-video rounded-xl overflow-hidden bg-black shadow-2xl shadow-primary/10 border border-border/30">
+                <div className="aspect-video rounded-xl overflow-hidden bg-background shadow-2xl shadow-primary/10 border border-border/30">
                   <iframe
-                    key={video.youtubeId}
-                    src={`https://www.youtube-nocookie.com/embed/${video.youtubeId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+                    src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`}
                     title={video.titre}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                     allowFullScreen
                     className="w-full h-full"
                     style={{ border: 'none' }}
-                    loading="eager"
                   />
                 </div>
 

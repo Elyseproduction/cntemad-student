@@ -275,7 +275,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
 
-  // Load subjects & videos from database on mount
+  // Load subjects & videos from database on mount + polling every second for non-admins
   useEffect(() => {
     async function load() {
       const [dbSubjects, dbVideos] = await Promise.all([
@@ -287,6 +287,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
       initialLoadDone.current = true;
     }
     load();
+
+    // Polling toutes les secondes pour synchroniser les changements de l'admin
+    const pollInterval = setInterval(async () => {
+      if (isAdminRef.current) return; // L'admin n'a pas besoin de polling
+      const [dbSubjects, dbVideos] = await Promise.all([
+        loadConfig('subjects'),
+        loadConfig('videos'),
+      ]);
+      if (dbSubjects && Array.isArray(dbSubjects)) {
+        setSubjects(prev => {
+          const prevStr = JSON.stringify(prev);
+          const newStr = JSON.stringify(dbSubjects);
+          return prevStr === newStr ? prev : dbSubjects;
+        });
+      }
+      if (dbVideos && Array.isArray(dbVideos)) {
+        setVideos(prev => {
+          const prevStr = JSON.stringify(prev);
+          const newStr = JSON.stringify(dbVideos);
+          return prevStr === newStr ? prev : dbVideos;
+        });
+      }
+    }, 1000);
+
+    return () => clearInterval(pollInterval);
   }, []);
 
   // Realtime subscription: detect admin changes from other clients

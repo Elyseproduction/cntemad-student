@@ -19,24 +19,29 @@ function charCountColor(len: number): string {
 
 async function compressImage(file: File, maxPx = 512, quality = 0.85): Promise<File> {
   return new Promise((resolve) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
-      canvas.toBlob(
-        (blob) => resolve(blob ? new File([blob], 'avatar.jpg', { type: 'image/jpeg' }) : file),
-        'image/jpeg', quality,
-      );
+    // FileReader fonctionne avec tous les URIs Android (content://, file://, etc.)
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) { resolve(file); return; }
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (blob) => resolve(blob ? new File([blob], 'avatar.jpg', { type: 'image/jpeg' }) : file),
+          'image/jpeg', quality,
+        );
+      };
+      img.onerror = () => resolve(file); // format non décodable → envoi original
+      img.src = dataUrl;
     };
-    // Si le navigateur ne peut pas décoder (ex: HEIC), on envoie le fichier original tel quel
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-    img.src = url;
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
   });
 }
 
@@ -78,25 +83,28 @@ export function ProfileMenu() {
   }, [open, profile]);
 
   const processFile = useCallback(async (file: File) => {
-    // Tester si le fichier est lisible comme image (couvre les cas "Parcourir" Android)
-    const isLoadable = await new Promise<boolean>((resolve) => {
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload  = () => { URL.revokeObjectURL(url); resolve(true); };
-      img.onerror = () => { URL.revokeObjectURL(url); resolve(false); };
-      img.src = url;
-    });
-    if (!isLoadable) {
-      toast({ title: 'Fichier non reconnu', description: 'Ce fichier ne peut pas être utilisé comme photo.', variant: 'destructive' });
-      return;
-    }
     setUploading(true);
     setShowPhotoSheet(false);
     try {
+      // Lire avec FileReader pour la preview (fiable sur tous les Android)
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = () => reject(new Error('Lecture impossible'));
+        reader.readAsDataURL(file);
+      });
+      // Afficher la preview immédiatement
+      setAvatarPreview(dataUrl);
+      setRemoveAvatar(false);
+      // Comprimer en arrière-plan
       const compressed = await compressImage(file);
       setAvatarFile(compressed);
-      setAvatarPreview(URL.createObjectURL(compressed));
-      setRemoveAvatar(false);
+      // Mettre à jour la preview avec la version compressée
+      const reader2 = new FileReader();
+      reader2.onload = (e) => setAvatarPreview(e.target?.result as string);
+      reader2.readAsDataURL(compressed);
+    } catch {
+      toast({ title: 'Erreur', description: 'Impossible de lire ce fichier.', variant: 'destructive' });
     } finally {
       setUploading(false);
     }

@@ -506,27 +506,37 @@ export function CommunityPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden', maxWidth: '100%' }}>
       {/* Onglets de session */}
       <div style={{ display: 'flex', gap: '0', overflowX: 'auto', flexShrink: 0, borderBottom: '1px solid var(--border)', background: 'var(--background)', scrollbarWidth: 'none' }}>
-        {sessions.map(session => (
-          <button
-            key={session.id}
-            onClick={() => setActiveChannel(session.id)}
-            style={{
-              padding: '10px 16px',
-              fontSize: '13px',
-              fontWeight: 500,
-              whiteSpace: 'nowrap',
-              border: 'none',
-              borderBottom: activeChannel === session.id ? '2px solid var(--primary)' : '2px solid transparent',
-              color: activeChannel === session.id ? 'var(--primary)' : 'var(--muted-foreground)',
-              background: 'transparent',
-              cursor: 'pointer',
-              flexShrink: 0,
-              transition: 'color 0.15s',
-            }}
-          >
-            {session.icone} {session.nom}
-          </button>
-        ))}
+        {sessions.map(session => {
+          const isActive = activeChannel === session.id;
+          return (
+            <button
+              key={session.id}
+              onClick={() => setActiveChannel(session.id)}
+              style={{
+                padding: '10px 14px',
+                fontSize: '13px',
+                fontWeight: isActive ? 600 : 400,
+                whiteSpace: 'nowrap',
+                border: 'none',
+                borderBottom: isActive ? `2px solid ${session.couleur}` : '2px solid transparent',
+                color: isActive ? session.couleur : 'var(--muted-foreground)',
+                background: isActive ? session.couleur + '10' : 'transparent',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'all 0.15s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>{session.icone}</span>
+              <span>{session.nom}</span>
+              {isActive && (
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: session.couleur, flexShrink: 0, display: 'inline-block' }} />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Barre "en ligne" */}
@@ -547,10 +557,13 @@ export function CommunityPage() {
         className="touch-pan-y overscroll-contain"
         style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 10px 8px' }}
       >
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <p className="text-lg">Aucun message pour le moment</p>
-            <p className="text-sm">Soyez le premier à écrire ! 💬</p>
+
+        {messages.filter(m => (m.channel_id || 'default') === activeChannel).length === 0 && !loading && (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
+            {(() => { const s = sessions.find(x => x.id === activeChannel); return s ? <span className="text-4xl mb-3">{s.icone}</span> : null; })()}
+            <p className="text-base font-medium text-foreground">{sessions.find(x => x.id === activeChannel)?.nom || 'Salon'}</p>
+            <p className="text-sm mt-1">Aucun message pour le moment</p>
+            <p className="text-xs mt-0.5 opacity-60">Soyez le premier à écrire ! 💬</p>
           </div>
         )}
         {messages.filter(m => (m.channel_id || 'default') === activeChannel).map((msg) => {

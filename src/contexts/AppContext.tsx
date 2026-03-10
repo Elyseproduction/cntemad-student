@@ -57,6 +57,7 @@ export interface Video {
   date: string;
   localUrl?: string;   // URL Supabase Storage pour vidéos uploadées depuis PC/Android
   videoType?: 'youtube' | 'local';
+  thumbnailUrl?: string; // URL miniature générée par IA pour vidéos locales
 }
 
 export interface ExerciseHistory {

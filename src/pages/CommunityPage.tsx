@@ -484,20 +484,20 @@ export function CommunityPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col animate-fade-in h-full px-2 pt-4 overflow-hidden">
-      <div className="flex items-center justify-end mb-4">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/60 border border-border">
-          <span className="relative flex h-2.5 w-2.5">
+    <div className="max-w-3xl mx-auto flex flex-col animate-fade-in h-full overflow-x-hidden" style={{ paddingLeft: 0, paddingRight: 0 }}>
+      <div className="flex items-center justify-end mb-3 px-3 pt-3 shrink-0">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/60 border border-border overflow-hidden max-w-full">
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
           </span>
-          <Users size={14} className="text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">{onlineCount} en ligne</span>
+          <Users size={13} className="text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium text-foreground whitespace-nowrap">{onlineCount} en ligne</span>
         </div>
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-2 touch-pan-y overscroll-contain">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 touch-pan-y overscroll-contain" style={{ paddingLeft: '10px', paddingRight: '10px', paddingBottom: '4px' }}>
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <p className="text-lg">Aucun message pour le moment</p>
@@ -510,8 +510,8 @@ export function CommunityPage() {
           const replyMsg = getReplyMsg(msg.reply_to);
 
           return (
-            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in group/msg`}>
-              <div className={`max-w-[80%] ${isMe ? 'order-2' : ''} relative`}>
+            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in group/msg`} style={{ minWidth: 0 }}>
+              <div className={`${isMe ? 'order-2' : ''} relative`} style={{ maxWidth: 'min(78%, calc(100vw - 56px))', minWidth: 0 }}>
                 {/* Author info */}
                 <div className="flex items-center gap-2 mb-1">
                   {!isMe && (
@@ -745,12 +745,15 @@ export function CommunityPage() {
       )}
 
       {/* Input */}
-      <div className="sticky bottom-0 flex flex-col border-t border-border bg-background z-10"
+      <div
+        className="flex flex-col border-t border-border bg-background z-10"
         style={{
           flexShrink: 0,
           paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
-          paddingLeft: 'max(4px, env(safe-area-inset-left))',
-          paddingRight: 'max(4px, env(safe-area-inset-right))',
+          paddingLeft: 'max(6px, env(safe-area-inset-left))',
+          paddingRight: 'max(6px, env(safe-area-inset-right))',
+          width: '100%',
+          boxSizing: 'border-box',
         }}
       >
         <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
@@ -772,8 +775,8 @@ export function CommunityPage() {
           </div>
         )}
 
-        <div className="flex items-end gap-1.5 py-2 px-2 w-full">
-          <div className="flex items-center shrink-0 gap-0.5">
+        <div className="flex items-end gap-1 py-2 w-full" style={{ minWidth: 0 }}>
+          <div className="flex items-center shrink-0">
             <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
               <Smile size={20} />
             </button>
@@ -788,19 +791,19 @@ export function CommunityPage() {
             onKeyDown={handleInputKeyDown}
             rows={1}
             placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
-            className="flex-1 min-w-0 w-0 px-3 py-2 rounded-2xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm resize-none overflow-hidden"
-            style={{ maxHeight: '120px' }}
+            className="flex-1 px-3 py-2 rounded-2xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm resize-none overflow-hidden"
+            style={{ maxHeight: '120px', minWidth: 0, width: 0 }}
             onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }}
           />
           {input.trim() ? (
-            <button onClick={sendMessage} className="p-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0 ml-0.5">
+            <button onClick={sendMessage} className="p-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0">
               <Send size={18} />
             </button>
           ) : (
             <button
               onClick={startRecording}
               disabled={uploading}
-              className={`p-2.5 rounded-full transition-colors shrink-0 ml-0.5 ${isRecording ? 'text-red-500 bg-red-500/10 animate-pulse' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'} disabled:opacity-50`}
+              className={`p-2.5 rounded-full transition-colors shrink-0 ${isRecording ? 'text-red-500 bg-red-500/10 animate-pulse' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'} disabled:opacity-50`}
               title={isRecording ? 'Appuyez pour envoyer' : 'Message vocal — appuyez pour démarrer'}
             >
               {isRecording ? <MicOff size={18} /> : <Mic size={18} />}

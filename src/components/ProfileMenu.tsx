@@ -78,7 +78,18 @@ export function ProfileMenu() {
   }, [open, profile]);
 
   const processFile = useCallback(async (file: File) => {
-    // Pas de validation de type : accept="image/*" filtre déjà au niveau de l'OS Android/iOS
+    // Tester si le fichier est lisible comme image (couvre les cas "Parcourir" Android)
+    const isLoadable = await new Promise<boolean>((resolve) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload  = () => { URL.revokeObjectURL(url); resolve(true); };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(false); };
+      img.src = url;
+    });
+    if (!isLoadable) {
+      toast({ title: 'Fichier non reconnu', description: 'Ce fichier ne peut pas être utilisé comme photo.', variant: 'destructive' });
+      return;
+    }
     setUploading(true);
     setShowPhotoSheet(false);
     try {
@@ -218,7 +229,7 @@ export function ProfileMenu() {
                   />
                 </div>
 
-                {/* Galerie */}
+                {/* Galerie — sans accept pour autoriser "Parcourir" sur Android */}
                 <div className="relative overflow-hidden rounded-2xl">
                   <div className="flex items-center gap-3 w-full px-4 py-3.5 bg-secondary select-none pointer-events-none">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -232,7 +243,6 @@ export function ProfileMenu() {
                   </div>
                   <input
                     type="file"
-                    accept="image/*"
                     onChange={handleFileChange}
                     style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
                   />

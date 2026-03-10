@@ -175,17 +175,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className={`transition-all duration-300 ${sidebarOpen ? 'md:ml-64' : 'md:ml-16'} ${isCommunity ? 'flex flex-col h-dvh' : ''}`}>
 
         {/* Header — hauteur fixe 64px */}
-        <header className="sticky top-0 z-30 bg-card/60 backdrop-blur-xl border-b border-border px-4 py-3 flex items-center justify-between min-h-[64px] shrink-0">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 bg-card/60 backdrop-blur-xl border-b border-border px-3 py-3 flex items-center justify-between min-h-[64px] shrink-0 overflow-hidden">
+          <div className="flex items-center gap-2 shrink-0">
             <button className="md:hidden p-1 rounded-lg hover:bg-secondary transition-colors" aria-label="Menu" onClick={() => setMobileMenuOpen(true)}>
               <Menu size={22} />
             </button>
-            <h2 className="font-heading font-semibold text-base">
+            <h2 className="font-heading font-semibold text-base truncate max-w-[140px] sm:max-w-none">
               {tabs.find(t => t.id === activeTab)?.emoji} {tabs.find(t => t.id === activeTab)?.label}
             </h2>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="md:hidden flex items-center gap-1.5 text-xs text-muted-foreground px-2 py-1 rounded-full bg-secondary/60">
+          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            <span className="md:hidden flex items-center gap-1 text-xs text-muted-foreground px-2 py-1 rounded-full bg-secondary/60 whitespace-nowrap">
               <Users size={12} /> {onlineCount}
             </span>
             {isAdmin && (

@@ -245,7 +245,7 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
                     type="password"
                     value={confirmCode}
                     onChange={e => { setConfirmCode(e.target.value); setPwError(''); }}
-                    placeholder="Code de confirmation (1206)"
+                    placeholder="Code de confirmation"
                     className="w-full px-3 py-2.5 rounded-lg bg-background border border-border focus:border-primary outline-none text-sm text-foreground"
                   />
                   {pwError && <p className="text-destructive text-xs text-center">{pwError}</p>}
@@ -352,7 +352,7 @@ export function AdminModal({ open, onClose }: { open: boolean; onClose: () => vo
                 type="password"
                 value={confirmCode}
                 onChange={e => { setConfirmCode(e.target.value); setPwError(''); }}
-                placeholder="Code de confirmation (1206)"
+                placeholder="Code de confirmation"
                 className="w-full px-3 py-2.5 rounded-lg bg-background border border-border focus:border-primary outline-none text-sm text-foreground"
               />
               {pwError && <p className="text-destructive text-xs text-center">{pwError}</p>}

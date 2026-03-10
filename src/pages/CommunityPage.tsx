@@ -509,7 +509,7 @@ export function CommunityPage() {
       )}
 
       {/* Barre de saisie */}
-      <div className="sticky bottom-0 bg-card/80 backdrop-blur-sm border-t">
+      <div className="sticky bottom-0 bg-card/95 backdrop-blur-md border-t border-border z-20">
         {replyingTo && (
           <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-l-4 border-primary">
             <div className="flex-1 min-w-0">

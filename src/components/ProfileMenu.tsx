@@ -197,29 +197,46 @@ export function ProfileMenu() {
 
               {/* Options */}
               <div className="px-4 space-y-2">
-                <label className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-secondary cursor-pointer select-none active:opacity-70">
-                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Camera size={20} className="text-primary" />
+                {/* Prendre une photo */}
+                <div className="relative overflow-hidden rounded-2xl">
+                  <div className="flex items-center gap-3 w-full px-4 py-3.5 bg-secondary select-none pointer-events-none">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Camera size={20} className="text-primary" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium text-foreground">Prendre une photo</p>
+                      <p className="text-xs text-muted-foreground">Utiliser l'appareil photo</p>
+                    </div>
+                    <ChevronRight size={16} className="text-muted-foreground shrink-0" />
                   </div>
-                  <div className="flex-1 text-left">
-                    <p className="text-sm font-medium text-foreground">Prendre une photo</p>
-                    <p className="text-xs text-muted-foreground">Utiliser l'appareil photo</p>
-                  </div>
-                  <ChevronRight size={16} className="text-muted-foreground shrink-0" />
-                </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleFileChange}
+                    style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                  />
+                </div>
 
-                <label className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-secondary cursor-pointer select-none active:opacity-70">
-                  <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <ImagePlus size={20} className="text-primary" />
+                {/* Galerie */}
+                <div className="relative overflow-hidden rounded-2xl">
+                  <div className="flex items-center gap-3 w-full px-4 py-3.5 bg-secondary select-none pointer-events-none">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <ImagePlus size={20} className="text-primary" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium text-foreground">Choisir depuis la galerie</p>
+                      <p className="text-xs text-muted-foreground">Toutes vos photos et images</p>
+                    </div>
+                    <ChevronRight size={16} className="text-muted-foreground shrink-0" />
                   </div>
-                  <div className="flex-1 text-left">
-                    <p className="text-sm font-medium text-foreground">Choisir depuis la galerie</p>
-                    <p className="text-xs text-muted-foreground">Toutes vos photos et images</p>
-                  </div>
-                  <ChevronRight size={16} className="text-muted-foreground shrink-0" />
-                </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                  />
+                </div>
 
                 {hasAvatar && (
                   <button

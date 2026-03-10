@@ -458,25 +458,34 @@ export function VideoPage() {
                 {video.description && (
                   <p className="text-xs text-white/50 mb-2 line-clamp-1">{video.description}</p>
                 )}
-                {hasNext && (
-                  <button
-                    onClick={() => navigateVideo('next')}
-                    className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 transition-all group text-left"
-                  >
-                    <img
-                      src={`https://img.youtube.com/vi/${filteredVideos[currentVideoIndex + 1].youtubeId}/mqdefault.jpg`}
-                      alt=""
-                      className="w-16 aspect-video object-cover rounded-lg flex-shrink-0"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-white/40 mb-0.5">Vidéo suivante</p>
-                      <h4 className="text-sm font-medium truncate text-white/80 group-hover:text-white transition-colors">
-                        {filteredVideos[currentVideoIndex + 1].titre}
-                      </h4>
-                    </div>
-                    <ChevronRight size={16} className="text-white/40 flex-shrink-0" />
-                  </button>
-                )}
+                {hasNext && (() => {
+                  const nextVid = filteredVideos[currentVideoIndex + 1];
+                  return (
+                    <button
+                      onClick={() => navigateVideo('next')}
+                      className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 transition-all group text-left"
+                    >
+                      {nextVid.videoType === 'local' ? (
+                        <div className="w-16 aspect-video bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <FileVideo size={18} className="text-white/50" />
+                        </div>
+                      ) : (
+                        <img
+                          src={`https://img.youtube.com/vi/${nextVid.youtubeId}/mqdefault.jpg`}
+                          alt=""
+                          className="w-16 aspect-video object-cover rounded-lg flex-shrink-0"
+                        />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-white/40 mb-0.5">Vidéo suivante</p>
+                        <h4 className="text-sm font-medium truncate text-white/80 group-hover:text-white transition-colors">
+                          {nextVid.titre}
+                        </h4>
+                      </div>
+                      <ChevronRight size={16} className="text-white/40 flex-shrink-0" />
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           </div>

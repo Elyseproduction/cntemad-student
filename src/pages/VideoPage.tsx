@@ -60,7 +60,8 @@ function isFSActive() {
 
 /* ─── Main component ────────────────────────────────────────────────────────── */
 export function VideoPage() {
-  const { videos, setVideos, subjects, isAdmin } = useApp();
+  const { videos, setVideos, subjects, sessions, isAdmin } = useApp();
+  const [activeSession, setActiveSession] = useState('all');
   const [filter, setFilter] = useState('');
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
@@ -78,10 +79,23 @@ export function VideoPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
 
+  // Get matières that belong to the active session
+  const sessionMatieres = useMemo(() => {
+    if (activeSession === 'all') return null; // null = no session filter
+    const subs = subjects.filter(s => (s.session_id || 'default') === activeSession);
+    return new Set(subs.map(s => s.nom));
+  }, [activeSession, subjects]);
+
   const filteredVideos = useMemo(() => {
-    const filtered = filter ? videos.filter(v => v.matiere === filter) : videos;
+    let filtered = videos;
+    // Session filter
+    if (sessionMatieres !== null) {
+      filtered = filtered.filter(v => !v.matiere || sessionMatieres.has(v.matiere));
+    }
+    // Matière filter (secondary)
+    if (filter) filtered = filtered.filter(v => v.matiere === filter);
     return [...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [videos, filter]);
+  }, [videos, filter, sessionMatieres]);
 
   const currentVideoIndex = useMemo(() => {
     if (!selectedVideo) return -1;
@@ -90,7 +104,12 @@ export function VideoPage() {
 
   const hasPrev = currentVideoIndex > 0;
   const hasNext = currentVideoIndex < filteredVideos.length - 1;
-  const matieres = [...new Set(videos.map(v => v.matiere).filter(Boolean))];
+  const matieres = [...new Set(
+    (sessionMatieres !== null
+      ? videos.filter(v => !v.matiere || sessionMatieres.has(v.matiere))
+      : videos
+    ).map(v => v.matiere).filter(Boolean)
+  )];
 
   /* ── Upload local video ────────────────────────────────────────────────────*/
   const handleAdd = async () => {
@@ -270,6 +289,32 @@ export function VideoPage() {
           </button>
         )}
       </div>
+
+      {/* Session tabs */}
+      {sessions.length > 1 && (
+        <div className="flex gap-0 overflow-x-auto mb-4 border-b border-border" style={{ scrollbarWidth: 'none' }}>
+          <button
+            onClick={() => { setActiveSession('all'); setFilter(''); }}
+            style={{
+              padding: '8px 16px', fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap',
+              border: 'none', borderBottom: activeSession === 'all' ? '2px solid var(--primary)' : '2px solid transparent',
+              color: activeSession === 'all' ? 'var(--primary)' : 'var(--muted-foreground)',
+              background: 'transparent', cursor: 'pointer', flexShrink: 0,
+            }}
+          >🎬 Toutes</button>
+          {sessions.map(session => (
+            <button key={session.id}
+              onClick={() => { setActiveSession(session.id); setFilter(''); }}
+              style={{
+                padding: '8px 16px', fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap',
+                border: 'none', borderBottom: activeSession === session.id ? '2px solid var(--primary)' : '2px solid transparent',
+                color: activeSession === session.id ? 'var(--primary)' : 'var(--muted-foreground)',
+                background: 'transparent', cursor: 'pointer', flexShrink: 0,
+              }}
+            >{session.icone} {session.nom}</button>
+          ))}
+        </div>
+      )}
 
       {/* Filter bar */}
       {matieres.length > 0 && (

@@ -7,11 +7,13 @@ import { ProfileMenu } from '@/components/ProfileMenu';
 import { supabase } from '@/integrations/supabase/client';
 
 const tabs = [
-  { id: 'cours',      label: 'Cours',         icon: BookOpen,       emoji: '📚' },
-  { id: 'exercices',  label: 'Exercices IA',   icon: Brain,          emoji: '🧠' },
-  { id: 'communaute', label: 'Communauté',     icon: MessageCircle,  emoji: '💬' },
-  { id: 'videos',     label: 'Vidéothèque',    icon: Video,          emoji: '🎬' },
+  { id: 'cours',      label: 'Cours',        icon: BookOpen,      emoji: '📚' },
+  { id: 'exercices',  label: 'Exercices IA',  icon: Brain,         emoji: '🧠' },
+  { id: 'communaute', label: 'Communauté',    icon: MessageCircle, emoji: '💬' },
+  { id: 'videos',     label: 'Vidéothèque',   icon: Video,         emoji: '🎬' },
 ];
+
+const NAV_H = 56; // px hauteur de la nav mobile
 
 export interface OnlineUser { username: string; color: string; }
 interface OnlineContextType { count: number; users: OnlineUser[]; }
@@ -20,7 +22,7 @@ export const useOnlineCount = () => useContext(OnlineContext).count;
 export const useOnlineUsers  = () => useContext(OnlineContext);
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { isAdmin, logout, darkMode, toggleDarkMode, activeTab, setActiveTab } = useApp();
+  const { isAdmin, darkMode, toggleDarkMode, activeTab, setActiveTab } = useApp();
   const { isInstallable, isInstalled, install } = usePWAInstall();
   const canInstall = isInstallable && !isInstalled;
 
@@ -32,100 +34,67 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [onlineCount,    setOnlineCount]    = useState(0);
   const [onlineUsers,    setOnlineUsers]    = useState<OnlineUser[]>([]);
 
-  // Raccourci Ctrl+B pour toggler la sidebar
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-        e.preventDefault();
-        setSidebarOpen(p => !p);
-      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') { e.preventDefault(); setSidebarOpen(p => !p); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Présence en temps réel
   useEffect(() => {
     const username  = localStorage.getItem('community_username') || 'user';
     const userColor = localStorage.getItem('community_color')    || '#6C63FF';
-
-    const presenceChannel = supabase.channel('app_presence', {
-      config: { presence: { key: `${username}-${Date.now()}` } },
-    });
-
-    presenceChannel
-      .on('presence', { event: 'sync' }, () => {
-        const state = presenceChannel.presenceState();
+    const ch = supabase.channel('app_presence', { config: { presence: { key: `${username}-${Date.now()}` } } });
+    ch.on('presence', { event: 'sync' }, () => {
+        const state = ch.presenceState();
         const keys  = Object.keys(state);
         setOnlineCount(keys.length);
         const users: OnlineUser[] = [];
         const seen  = new Set<string>();
-        for (const key of keys) {
-          for (const p of (state[key] as any[])) {
-            if (p.username && !seen.has(p.username)) {
-              seen.add(p.username);
-              users.push({ username: p.username, color: p.color || '#6C63FF' });
-            }
-          }
-        }
+        for (const key of keys)
+          for (const p of (state[key] as any[]))
+            if (p.username && !seen.has(p.username)) { seen.add(p.username); users.push({ username: p.username, color: p.color || '#6C63FF' }); }
         setOnlineUsers(users);
       })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({ username, color: userColor, online_at: new Date().toISOString() });
-        }
+      .subscribe(async (s) => {
+        if (s === 'SUBSCRIBED') await ch.track({ username, color: userColor, online_at: new Date().toISOString() });
       });
-
-    return () => { supabase.removeChannel(presenceChannel); };
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
-  const fetchMessageCount = useCallback(async () => {
-    const { count } = await supabase
-      .from('community_messages')
-      .select('*', { count: 'exact', head: true });
+  const fetchCount = useCallback(async () => {
+    const { count } = await supabase.from('community_messages').select('*', { count: 'exact', head: true });
     return count || 0;
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'communaute') {
-      fetchMessageCount().then(count => { setLastSeenCount(count); setUnreadCount(0); });
-    }
-  }, [activeTab, fetchMessageCount]);
+    if (activeTab === 'communaute')
+      fetchCount().then(c => { setLastSeenCount(c); setUnreadCount(0); });
+  }, [activeTab, fetchCount]);
 
   useEffect(() => {
-    fetchMessageCount().then(count => {
-      if (activeTab === 'communaute') {
-        setLastSeenCount(count); setUnreadCount(0);
-      } else {
-        const stored = localStorage.getItem('community_last_seen_count');
-        const seen   = stored ? parseInt(stored, 10) : count;
-        setLastSeenCount(seen);
-        setUnreadCount(Math.max(0, count - seen));
+    fetchCount().then(c => {
+      if (activeTab === 'communaute') { setLastSeenCount(c); setUnreadCount(0); }
+      else {
+        const seen = parseInt(localStorage.getItem('community_last_seen_count') || '0', 10);
+        setLastSeenCount(seen); setUnreadCount(Math.max(0, c - seen));
       }
     });
-
-    const channel = supabase
-      .channel('layout_community_badge')
+    const ch = supabase.channel('layout_badge')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'community_messages' }, () => {
-        fetchMessageCount().then(count => {
+        fetchCount().then(c => {
           setUnreadCount(() => {
-            if (activeTab === 'communaute') {
-              setLastSeenCount(count);
-              localStorage.setItem('community_last_seen_count', count.toString());
-              return 0;
-            }
-            return Math.max(0, count - lastSeenCount);
+            if (activeTab === 'communaute') { setLastSeenCount(c); localStorage.setItem('community_last_seen_count', String(c)); return 0; }
+            return Math.max(0, c - lastSeenCount);
           });
         });
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchMessageCount, activeTab, lastSeenCount]);
+      }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [fetchCount, activeTab, lastSeenCount]);
 
   useEffect(() => {
-    if (activeTab === 'communaute')
-      localStorage.setItem('community_last_seen_count', lastSeenCount.toString());
+    if (activeTab === 'communaute') localStorage.setItem('community_last_seen_count', String(lastSeenCount));
   }, [activeTab, lastSeenCount]);
 
   const renderBadge = (tabId: string) => {
@@ -147,9 +116,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
     </span>
   );
 
+  const isCommunity = activeTab === 'communaute';
+
   return (
     <OnlineContext.Provider value={{ count: onlineCount, users: onlineUsers }}>
-    <div className="min-h-screen gradient-mesh">
+    {/*
+      --nav-h : variable CSS disponible pour CommunityPage.
+      Si la barre de saisie utilise `position: fixed; bottom: 0`,
+      elle doit utiliser `bottom: var(--nav-h)` à la place.
+    */}
+    <div
+      className="min-h-screen gradient-mesh"
+      style={{ '--nav-h': `${NAV_H}px` } as React.CSSProperties}
+    >
 
       {/* Sidebar desktop */}
       <aside className={`fixed left-0 top-0 h-full z-40 hidden md:flex flex-col transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-16'} bg-card/80 backdrop-blur-xl border-r border-border`}>
@@ -158,66 +137,47 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {sidebarOpen && (
             <div className="min-w-0 flex-1">
               <h1 className="font-heading font-bold text-lg gradient-text leading-tight">UniLearn</h1>
-              <div className="flex items-center gap-1 mt-0.5">
-                <OnlineDot />
-                <span className="text-[10px] text-muted-foreground">en ligne</span>
-              </div>
+              <div className="flex items-center gap-1 mt-0.5"><OnlineDot /><span className="text-[10px] text-muted-foreground">en ligne</span></div>
             </div>
           )}
         </div>
-
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
           {tabs.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               title={!sidebarOpen ? tab.label : undefined} aria-label={tab.label}
               className={`relative ${activeTab === tab.id ? 'nav-item-active w-full' : 'nav-item w-full'} ${!sidebarOpen ? 'justify-center' : ''}`}>
-              <div className="relative shrink-0">
-                <tab.icon size={20} />
-                {renderBadge(tab.id)}
-              </div>
+              <div className="relative shrink-0"><tab.icon size={20} />{renderBadge(tab.id)}</div>
               {sidebarOpen && <span>{tab.label}</span>}
             </button>
           ))}
         </nav>
-
         <div className="p-2 space-y-0.5 border-t border-border">
-          {!sidebarOpen && (
-            <div className="flex justify-center py-1" title={`${onlineCount} utilisateur(s) en ligne`}>
-              <OnlineDot />
-            </div>
-          )}
-          <button onClick={toggleDarkMode} title={darkMode ? 'Mode clair' : 'Mode sombre'}
-            className={`nav-item w-full ${!sidebarOpen ? 'justify-center' : ''}`}>
+          {!sidebarOpen && <div className="flex justify-center py-1"><OnlineDot /></div>}
+          <button onClick={toggleDarkMode} title={darkMode ? 'Mode clair' : 'Mode sombre'} className={`nav-item w-full ${!sidebarOpen ? 'justify-center' : ''}`}>
             {darkMode ? <Sun size={20} className="shrink-0" /> : <Moon size={20} className="shrink-0" />}
             {sidebarOpen && <span>{darkMode ? 'Mode clair' : 'Mode sombre'}</span>}
           </button>
-          <button onClick={() => setShowAdmin(true)} title="Administration"
-            className={`nav-item w-full opacity-60 hover:opacity-100 ${!sidebarOpen ? 'justify-center' : ''}`}>
-            <Settings size={20} className="shrink-0" />
-            {sidebarOpen && <span>Admin</span>}
+          <button onClick={() => setShowAdmin(true)} title="Administration" className={`nav-item w-full opacity-60 hover:opacity-100 ${!sidebarOpen ? 'justify-center' : ''}`}>
+            <Settings size={20} className="shrink-0" />{sidebarOpen && <span>Admin</span>}
           </button>
           {canInstall && (
-            <button onClick={() => install()} title="Installer l'application"
-              className={`nav-item w-full text-primary ${!sidebarOpen ? 'justify-center' : ''}`}>
-              <Download size={20} className="shrink-0" />
-              {sidebarOpen && <span>Installer l'app</span>}
+            <button onClick={() => install()} title="Installer" className={`nav-item w-full text-primary ${!sidebarOpen ? 'justify-center' : ''}`}>
+              <Download size={20} className="shrink-0" />{sidebarOpen && <span>Installer l'app</span>}
             </button>
           )}
-          <button onClick={() => setSidebarOpen(p => !p)}
-            title={sidebarOpen ? 'Réduire (Ctrl+B)' : 'Agrandir (Ctrl+B)'}
-            className={`nav-item w-full ${!sidebarOpen ? 'justify-center' : ''}`}>
-            <Menu size={20} className="shrink-0" />
-            {sidebarOpen && <span>Réduire</span>}
+          <button onClick={() => setSidebarOpen(p => !p)} title={sidebarOpen ? 'Réduire (Ctrl+B)' : 'Agrandir (Ctrl+B)'} className={`nav-item w-full ${!sidebarOpen ? 'justify-center' : ''}`}>
+            <Menu size={20} className="shrink-0" />{sidebarOpen && <span>Réduire</span>}
           </button>
         </div>
       </aside>
 
-      {/* Contenu principal */}
-      <div className={`transition-all duration-300 ${sidebarOpen ? 'md:ml-64' : 'md:ml-16'}`}>
-        <header className="sticky top-0 z-30 bg-card/60 backdrop-blur-xl border-b border-border px-4 py-3 flex items-center justify-between min-h-[64px]">
+      {/* Wrapper principal */}
+      <div className={`transition-all duration-300 ${sidebarOpen ? 'md:ml-64' : 'md:ml-16'} ${isCommunity ? 'flex flex-col h-dvh' : ''}`}>
+
+        {/* Header — hauteur fixe 64px */}
+        <header className="sticky top-0 z-30 bg-card/60 backdrop-blur-xl border-b border-border px-4 py-3 flex items-center justify-between min-h-[64px] shrink-0">
           <div className="flex items-center gap-3">
-            <button className="md:hidden p-1 rounded-lg hover:bg-secondary transition-colors"
-              aria-label="Ouvrir le menu" onClick={() => setMobileMenuOpen(true)}>
+            <button className="md:hidden p-1 rounded-lg hover:bg-secondary transition-colors" aria-label="Menu" onClick={() => setMobileMenuOpen(true)}>
               <Menu size={22} />
             </button>
             <h2 className="font-heading font-semibold text-base">
@@ -225,8 +185,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </h2>
           </div>
           <div className="flex items-center gap-2">
-            <span className="md:hidden flex items-center gap-1.5 text-xs text-muted-foreground px-2 py-1 rounded-full bg-secondary/60"
-              title={`${onlineCount} utilisateur(s) en ligne`}>
+            <span className="md:hidden flex items-center gap-1.5 text-xs text-muted-foreground px-2 py-1 rounded-full bg-secondary/60">
               <Users size={12} /> {onlineCount}
             </span>
             {isAdmin && (
@@ -239,21 +198,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/*
-          ── Communauté mobile ──────────────────────────────────────────────
-          Hauteur = 100dvh - header(4rem) - nav(3.5rem) - safe-area
-          "flex flex-col" permet à CommunityPage de distribuer :
-            • messages  → flex-1 + overflow-y-auto  (défile)
-            • saisie    → reste collée au bas du conteneur (au-dessus de la nav)
-          ── Autres pages ───────────────────────────────────────────────────
-          Padding classique + pb-24 pour ne pas passer sous la nav
+          Zone Communauté mobile :
+          ┌─────────────────────┐
+          │ Header (64px)       │  sticky
+          ├─────────────────────┤
+          │ Messages (scroll)   │  flex-1
+          ├─────────────────────┤
+          │ Barre de saisie     │  sticky bottom-0 DANS ce conteneur
+          ├─────────────────────┤  ← fin du <main>
+          │ Nav (56px) z-[60]   │  fixed, toujours visible
+          └─────────────────────┘
+
+          max-h-[calc(100dvh - 64px - 56px - safe-area)] sur mobile
+          → le contenu ne déborde jamais sur la nav
         */}
         <main
           className={`animate-fade-in ${
-            activeTab === 'communaute'
+            isCommunity
               ? [
-                  'h-[calc(100dvh-4rem-3.5rem-env(safe-area-inset-bottom))]',
-                  'md:h-[calc(100dvh-4rem)]',
-                  'flex flex-col overflow-hidden touch-none',
+                  'flex-1 overflow-hidden flex flex-col',
+                  'max-h-[calc(100dvh-64px-56px-env(safe-area-inset-bottom))]',
+                  'md:max-h-[calc(100dvh-64px)]',
+                  'touch-none',
                 ].join(' ')
               : 'p-4 md:p-6 pb-24 md:pb-6'
           }`}
@@ -263,24 +229,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       {/*
-        ── Mobile bottom nav ─────────────────────────────────────────────────
-        z-[60] : supérieur à z-50 (max shadcn/ui) → toujours visible, même
-        quand CommunityPage rend sa barre de saisie en position fixed/sticky
+        Nav mobile — z-[60] : toujours au-dessus de tout contenu de page.
+        min-h-[56px] = NAV_H utilisé dans le calc ci-dessus.
+        paddingBottom safe-area = support iPhone avec barre d'accueil.
       */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-[60] md:hidden bg-card/90 backdrop-blur-xl border-t border-border flex"
+        className="fixed bottom-0 left-0 right-0 z-[60] md:hidden bg-card/95 backdrop-blur-xl border-t border-border flex"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {tabs.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)} aria-label={tab.label}
-            className={`flex-1 flex flex-col items-center py-2.5 min-h-[56px] justify-center transition-colors relative ${
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] transition-colors relative ${
               activeTab === tab.id ? 'text-primary' : 'text-muted-foreground'
             }`}>
-            <div className="relative">
-              <tab.icon size={20} />
-              {renderBadge(tab.id)}
-            </div>
-            <span className="text-[9px] mt-1 font-medium">{tab.label}</span>
+            <div className="relative"><tab.icon size={20} />{renderBadge(tab.id)}</div>
+            <span className="text-[9px] font-medium leading-none">{tab.label}</span>
           </button>
         ))}
       </nav>
@@ -293,15 +256,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h1 className="font-heading font-bold text-xl gradient-text">UniLearn</h1>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <OnlineDot />
-                  <span className="text-xs text-muted-foreground">utilisateur(s) en ligne</span>
-                </div>
+                <div className="flex items-center gap-1.5 mt-0.5"><OnlineDot /><span className="text-xs text-muted-foreground">en ligne</span></div>
               </div>
-              <button onClick={() => setMobileMenuOpen(false)} aria-label="Fermer"
-                className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
-                <X size={22} />
-              </button>
+              <button onClick={() => setMobileMenuOpen(false)} aria-label="Fermer" className="p-1.5 rounded-lg hover:bg-secondary transition-colors"><X size={22} /></button>
             </div>
             <nav className="flex-1 space-y-0.5">
               {tabs.map(tab => (
@@ -314,8 +271,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </nav>
             <div className="space-y-0.5 border-t border-border pt-3">
               <button onClick={toggleDarkMode} className="nav-item w-full">
-                {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-                <span>{darkMode ? 'Mode clair' : 'Mode sombre'}</span>
+                {darkMode ? <Sun size={20} /> : <Moon size={20} />}<span>{darkMode ? 'Mode clair' : 'Mode sombre'}</span>
               </button>
               <button onClick={() => { setShowAdmin(true); setMobileMenuOpen(false); }} className="nav-item w-full">
                 <Settings size={20} /><span>Admin</span>

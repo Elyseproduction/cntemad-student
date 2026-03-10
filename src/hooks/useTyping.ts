@@ -44,7 +44,7 @@ export function useTyping(channelId: string = 'global') {
     }
 
     await supabase
-      .from('typing_status')
+      .from('typing_status' as any)
       .delete()
       .eq('user_id', user.id)
       .eq('channel_id', channelId);

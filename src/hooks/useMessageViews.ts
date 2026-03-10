@@ -52,7 +52,7 @@ export function useMessageViews(messageId: string) {
       if (!user) return;
 
       await supabase
-        .from('message_views')
+        .from('message_views' as any)
         .upsert({
           message_id: messageId,
           user_id: user.id,

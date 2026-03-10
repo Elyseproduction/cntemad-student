@@ -605,19 +605,31 @@ function TypingIndicator() {
       .channel('typing_status')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'typing_status' }, async () => {
         const { data } = await supabase
-          .from('typing_status')
-          .select('user_id, profiles(display_name, avatar_url)')
+          .from('typing_status' as any)
+          .select('user_id, updated_at')
           .gt('updated_at', new Date(Date.now() - 3000).toISOString());
-        setTypingUsers(data || []);
+        if (data) {
+          const userIds = (data as any[]).map((d: any) => d.user_id);
+          const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds);
+          setTypingUsers((data as any[]).map((d: any) => ({ user_id: d.user_id, profiles: profiles?.find(p => p.id === d.user_id) || { display_name: '...', avatar_url: '' } })));
+        }
       })
       .subscribe();
       
     const interval = setInterval(async () => {
       const { data } = await supabase
-        .from('typing_status')
-        .select('user_id, profiles(display_name, avatar_url)')
+        .from('typing_status' as any)
+        .select('user_id, updated_at')
         .gt('updated_at', new Date(Date.now() - 3000).toISOString());
-      setTypingUsers(data || []);
+      if (data) {
+        const userIds = (data as any[]).map((d: any) => d.user_id);
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds);
+          setTypingUsers((data as any[]).map((d: any) => ({ user_id: d.user_id, profiles: profiles?.find(p => p.id === d.user_id) || { display_name: '...', avatar_url: '' } })));
+        } else {
+          setTypingUsers([]);
+        }
+      }
     }, 1000);
     
     return () => {

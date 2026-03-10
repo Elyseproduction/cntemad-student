@@ -186,7 +186,7 @@ export function ProfileMenu() {
               className="bg-card rounded-t-3xl border-t border-border"
               style={{
                 animation: 'suSlideUp .22s ease',
-                paddingBottom: 'max(24px, env(safe-area-inset-bottom))',
+                paddingBottom: 'calc(56px + max(16px, env(safe-area-inset-bottom)))',
               }}
               onClick={e => e.stopPropagation()}
             >

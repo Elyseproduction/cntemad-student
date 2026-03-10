@@ -7,7 +7,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { VoiceRecorder } from '@/components/VoiceRecorder';
-import { useMessageViews } from '@/hooks/useMessageViews';
 import { useTyping } from '@/hooks/useTyping';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -86,7 +85,7 @@ export function CommunityPage() {
         .order('created_at', { ascending: true });
       
       if (error) throw error;
-      setMessages(data?.map(m => ({ ...m, reactions: m.reactions || {} })) || []);
+      setMessages(data?.map(m => ({ ...m, reactions: (m.reactions || {}) as Record<string, string[]> })) || []);
     } catch (err) {
       console.error('❌ Erreur chargement messages:', err);
       toast({ title: 'Erreur', description: 'Impossible de charger les messages', variant: 'destructive' });
@@ -383,7 +382,7 @@ export function CommunityPage() {
             const isMe = msg.auteur === username;
             const isDeleted = msg.is_deleted;
             const showAvatar = index === 0 || messages[index - 1]?.auteur !== msg.auteur;
-            const viewers = useMessageViews(msg.id);
+            // Views removed from inline hook call - handled separately
 
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group/msg`}>
@@ -434,18 +433,15 @@ export function CommunityPage() {
                       <span>{formatMessageTime(msg.created_at)}</span>
                       {msg.is_edited && !isDeleted && <span className="italic">(modifié)</span>}
                       
-                      {/* Vues du message */}
-                      {viewers.length > 0 && (
-                        <div className="flex items-center gap-1">
-                          <Eye size={10} />
-                          <span>{viewers.length}</span>
-                          <div className="flex -space-x-1">
-                            {viewers.slice(0, 3).map((v, i) => (
-                              <img key={i} src={v.user.avatar_url} alt="" className="w-4 h-4 rounded-full border border-background" title={`Vu par ${v.user.display_name}`} />
-                            ))}
+                      {/* Reply indicator */}
+                      {msg.reply_to && (() => {
+                        const parent = messages.find(m => m.id === msg.reply_to);
+                        return parent ? (
+                          <div className="text-[10px] text-muted-foreground/70 mb-0.5 italic truncate max-w-[200px]">
+                            ↩ {parent.auteur}: {parent.contenu.slice(0, 40)}
                           </div>
-                        </div>
-                      )}
+                        ) : null;
+                      })()}
                     </div>
                   </div>
 
@@ -512,7 +508,7 @@ export function CommunityPage() {
       )}
 
       {/* Barre de saisie */}
-      <div className="sticky bottom-0 bg-card/80 backdrop-blur-sm border-t">
+      <div className="sticky bottom-0 bg-card/95 backdrop-blur-md border-t border-border z-20">
         {replyingTo && (
           <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-l-4 border-primary">
             <div className="flex-1 min-w-0">
@@ -605,19 +601,31 @@ function TypingIndicator() {
       .channel('typing_status')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'typing_status' }, async () => {
         const { data } = await supabase
-          .from('typing_status')
-          .select('user_id, profiles(display_name, avatar_url)')
+          .from('typing_status' as any)
+          .select('user_id, updated_at')
           .gt('updated_at', new Date(Date.now() - 3000).toISOString());
-        setTypingUsers(data || []);
+        if (data) {
+          const userIds = (data as any[]).map((d: any) => d.user_id);
+          const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds);
+          setTypingUsers((data as any[]).map((d: any) => ({ user_id: d.user_id, profiles: profiles?.find(p => p.id === d.user_id) || { display_name: '...', avatar_url: '' } })));
+        }
       })
       .subscribe();
       
     const interval = setInterval(async () => {
       const { data } = await supabase
-        .from('typing_status')
-        .select('user_id, profiles(display_name, avatar_url)')
+        .from('typing_status' as any)
+        .select('user_id, updated_at')
         .gt('updated_at', new Date(Date.now() - 3000).toISOString());
-      setTypingUsers(data || []);
+      if (data) {
+        const userIds = (data as any[]).map((d: any) => d.user_id);
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds);
+          setTypingUsers((data as any[]).map((d: any) => ({ user_id: d.user_id, profiles: profiles?.find(p => p.id === d.user_id) || { display_name: '...', avatar_url: '' } })));
+        } else {
+          setTypingUsers([]);
+        }
+      }
     }, 1000);
     
     return () => {

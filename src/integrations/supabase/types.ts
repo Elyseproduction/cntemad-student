@@ -95,6 +95,32 @@ export type Database = {
           },
         ]
       }
+      message_views: {
+        Row: {
+          message_id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          message_id: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          message_id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_views_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "community_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -119,6 +145,24 @@ export type Database = {
           id?: string
           is_admin_badge?: boolean
           is_developer?: boolean
+        }
+        Relationships: []
+      }
+      typing_status: {
+        Row: {
+          channel_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

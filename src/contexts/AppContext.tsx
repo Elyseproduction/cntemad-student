@@ -56,6 +56,7 @@ export interface Video {
   youtubeId: string;
   matiere: string;
   date: string;
+  created_at?: string;
 }
 
 export interface ExerciseHistory {

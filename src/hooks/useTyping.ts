@@ -10,7 +10,7 @@ export function useTyping(channelId: string = 'global') {
     if (!user) return;
 
     await supabase
-      .from('typing_status')
+      .from('typing_status' as any)
       .upsert({
         user_id: user.id,
         channel_id: channelId,
@@ -25,7 +25,7 @@ export function useTyping(channelId: string = 'global') {
 
     heartbeatRef.current = setInterval(async () => {
       await supabase
-        .from('typing_status')
+        .from('typing_status' as any)
         .upsert({
           user_id: user.id,
           channel_id: channelId,
@@ -44,7 +44,7 @@ export function useTyping(channelId: string = 'global') {
     }
 
     await supabase
-      .from('typing_status')
+      .from('typing_status' as any)
       .delete()
       .eq('user_id', user.id)
       .eq('channel_id', channelId);

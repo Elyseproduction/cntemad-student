@@ -95,44 +95,43 @@ export function CommunityPage() {
   }, [toast]);
 
   // Charger le nombre de personnes en ligne
-  const fetchOnlineCount = useCallback(async () => {
-    try {
-      const { count } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-      setOnlineCount(count || 0);
-    } catch (err) {
-      console.error('❌ Erreur chargement en ligne:', err);
-    }
-  }, []);
-
+  // Presence en temps réel
   useEffect(() => {
     fetchMessages();
-    fetchOnlineCount();
 
     const channel = supabase
-      .channel('community_messages_realtime')
+      .channel('community_room', { config: { presence: { key: user?.id || 'anon' } } })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new as Message;
-          setMessages(prev => [...prev, { ...newMsg, reactions: newMsg.reactions || {} }]);
+          setMessages(prev => [...prev, { ...newMsg, reactions: (newMsg.reactions || {}) as Record<string, string[]> }]);
         } else if (payload.eventType === 'UPDATE') {
           const updated = payload.new as Message;
-          setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated, reactions: updated.reactions || {} } : m));
+          setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated, reactions: (updated.reactions || {}) as Record<string, string[]> } : m));
         } else if (payload.eventType === 'DELETE') {
           const old = payload.old as Message;
           setMessages(prev => prev.filter(m => m.id !== old.id));
         }
       })
-      .subscribe();
-
-    const interval = setInterval(fetchOnlineCount, 30000);
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        setOnlineCount(Object.keys(state).length);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED' && user) {
+          await channel.track({
+            user_id: user.id,
+            username: username,
+            avatar: userAvatar,
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
-      clearInterval(interval);
     };
-  }, [fetchMessages, fetchOnlineCount]);
+  }, [fetchMessages, user, username, userAvatar]);
 
   // Détection du clavier mobile
   useEffect(() => {

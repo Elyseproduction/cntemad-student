@@ -1,15 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Send, Smile, Paperclip, X, MoreVertical, Users, Download, Eye,
-  ChevronDown, Trash2, Reply, Copy, Pencil, Check
-} from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
-import { VoiceRecorder } from '@/components/VoiceRecorder';
-import { useTyping } from '@/hooks/useTyping';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { GoogleLoginButton } from '@/components/GoogleLoginButton';
 
 interface Message {
   id: string;
@@ -24,172 +19,159 @@ interface Message {
   is_deleted?: boolean;
   is_edited?: boolean;
   reply_to?: string | null;
-  user_id?: string;
 }
 
 const reactionEmojis = ['👍', '❤️', '😂', '🔥'];
 const emojiPicker = ['😀', '😂', '😍', '🤔', '👍', '👏', '🎉', '🔥', '❤️', '💪', '📚', '🧠', '💡', '⚡', '🎯', '✅'];
+
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
-const MAX_TEXTAREA_HEIGHT = 120;
 
 export function CommunityPage() {
   const { toast } = useToast();
-  const { user, profile, loading: authLoading } = useAuth();
+  const onlineCount = useOnlineCount();
+  const { users: onlineUsers } = useOnlineUsers();
+  const { user, profile, loading: authLoading, signOut } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [allProfiles, setAllProfiles] = useState<{ display_name: string; avatar_url: string | null; is_admin_badge: boolean; is_developer?: boolean }[]>([]);
   const [input, setInput] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [editingMsg, setEditingMsg] = useState<string | null>(null);
   const [editInput, setEditInput] = useState('');
-  const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const [onlineCount, setOnlineCount] = useState(0);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [showMentions, setShowMentions] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
   const [mentionIndex, setMentionIndex] = useState(0);
-  const [allProfiles, setAllProfiles] = useState<any[]>([]);
-  
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const username = profile?.display_name || user?.email?.split('@')[0] || 'Vous';
-  const userAvatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${username}&background=6C63FF&color=fff`;
+  const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
+  const userAvatar = profile?.avatar_url || '';
   const userColor = '#6C63FF';
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { startTyping, stopTyping } = useTyping();
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
-
-  // Charger les profils pour les mentions
-  useEffect(() => {
-    const fetchProfiles = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('display_name, avatar_url, is_developer');
-      if (data) setAllProfiles(data);
-    };
-    fetchProfiles();
+  const fetchMessages = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('community_messages')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (!error && data) {
+      setMessages(data.map(m => ({
+        ...m,
+        reactions: (m.reactions as Record<string, string[]>) || {},
+      })));
+      // Scroll to bottom after initial load
+      setTimeout(() => {
+        const el = scrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      }, 100);
+    }
+    setLoading(false);
   }, []);
 
-  // Charger les messages
-  const fetchMessages = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('community_messages')
-        .select('*')
-        .order('created_at', { ascending: true });
-      
-      if (error) throw error;
-      setMessages(data?.map(m => ({ ...m, reactions: (m.reactions || {}) as Record<string, string[]> })) || []);
-    } catch (err) {
-      console.error('❌ Erreur chargement messages:', err);
-      toast({ title: 'Erreur', description: 'Impossible de charger les messages', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+   // Fetch all registered users for mentions
+   useEffect(() => {
+     const fetchProfiles = async () => {
+       const { data } = await supabase
+         .from('profiles')
+         .select('display_name, avatar_url, is_admin_badge, is_developer');
+       if (data) setAllProfiles(data.filter(p => p.display_name).map(p => ({ display_name: p.display_name!, avatar_url: p.avatar_url, is_admin_badge: (p as any).is_admin_badge ?? false, is_developer: (p as any).is_developer ?? false })));
+     };
+     fetchProfiles();
+   }, []);
 
-  // Charger le nombre de personnes en ligne
-  // Presence en temps réel
   useEffect(() => {
     fetchMessages();
-
-    const channel = supabase
-      .channel('community_room', { config: { presence: { key: user?.id || 'anon' } } })
+    const msgChannel = supabase
+      .channel('community_messages_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          const newMsg = payload.new as Message;
-          setMessages(prev => [...prev, { ...newMsg, reactions: (newMsg.reactions || {}) as Record<string, string[]> }]);
-        } else if (payload.eventType === 'UPDATE') {
-          const updated = payload.new as Message;
-          setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated, reactions: (updated.reactions || {}) as Record<string, string[]> } : m));
-        } else if (payload.eventType === 'DELETE') {
-          const old = payload.old as Message;
-          setMessages(prev => prev.filter(m => m.id !== old.id));
-        }
-      })
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        setOnlineCount(Object.keys(state).length);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED' && user) {
-          await channel.track({
-            user_id: user.id,
-            username: username,
-            avatar: userAvatar,
-            online_at: new Date().toISOString(),
+          const newMsg = payload.new as any;
+          // Check if current user is mentioned
+          if (newMsg.auteur !== username && newMsg.contenu?.includes(`@${username}`)) {
+            toast({ title: `💬 ${newMsg.auteur} vous a mentionné`, description: newMsg.contenu.slice(0, 80) });
+          }
+          setMessages(prev => {
+            const exists = prev.some(m => m.id === newMsg.id);
+            const filtered = prev.filter(m => !(m.id.startsWith('temp-') && m.auteur === newMsg.auteur && m.contenu === newMsg.contenu));
+            if (exists) return prev;
+            return [...filtered, { ...newMsg, reactions: (newMsg.reactions as Record<string, string[]>) || {} }];
           });
+        } else if (payload.eventType === 'UPDATE') {
+          const updated = payload.new as any;
+          setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated, reactions: (updated.reactions as Record<string, string[]>) || {} } : m));
+        } else if (payload.eventType === 'DELETE') {
+          const old = payload.old as any;
+          if (old?.id) setMessages(prev => prev.filter(m => m.id !== old.id));
         }
-      });
+      })
+      .subscribe();
+
+    // Polling de secours toutes les 10s (le realtime gère l'instantané)
+    const pollInterval = setInterval(() => { fetchMessages(); }, 10000);
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(msgChannel);
+      clearInterval(pollInterval);
     };
-  }, [fetchMessages, user, username, userAvatar]);
+  }, [fetchMessages]);
 
-  // Détection du clavier mobile
+  const prevMsgCount = useRef(0);
+  const shouldAutoScroll = useRef(true);
+
+  // Track if user is near bottom to decide whether to auto-scroll
   useEffect(() => {
-    const handleResize = () => {
-      const isKeyboard = window.innerHeight < window.outerHeight * 0.8;
-      setKeyboardVisible(isKeyboard);
+    const el = scrollRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+      shouldAutoScroll.current = isNearBottom;
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Détection du scroll
-  const handleScroll = useCallback(() => {
-    if (!scrollRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-    setShowScrollButton(!isNearBottom);
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
   }, []);
 
   useEffect(() => {
-    const scrollElement = scrollRef.current;
-    if (scrollElement) {
-      scrollElement.addEventListener('scroll', handleScroll);
-      return () => scrollElement.removeEventListener('scroll', handleScroll);
+    const el = scrollRef.current;
+    if (!el) return;
+    const hasNewMessages = messages.length > prevMsgCount.current;
+    if (hasNewMessages && shouldAutoScroll.current) {
+      // Use requestAnimationFrame to ensure DOM is updated before scrolling
+      requestAnimationFrame(() => {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      });
     }
-  }, [handleScroll]);
+    prevMsgCount.current = messages.length;
+  }, [messages]);
 
   useEffect(() => {
     if (editingMsg && editInputRef.current) editInputRef.current.focus();
   }, [editingMsg]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // Close menu on outside click
+  useEffect(() => {
+    if (!activeMenu) return;
+    const handler = () => setActiveMenu(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [activeMenu]);
 
-  const formatMessageTime = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      const isToday = date.toDateString() === new Date().toDateString();
-      return isToday ? format(date, 'HH:mm') : format(date, 'dd/MM HH:mm');
-    } catch {
-      return '';
-    }
-  };
+  // Mention logic - show all registered users, with online indicator
+  const onlineNames = new Set(onlineUsers.map(u => u.username));
+  const filteredMentionUsers = allProfiles
+    .filter(u => u.display_name !== username)
+    .filter(u => !mentionFilter || u.display_name.toLowerCase().includes(mentionFilter.toLowerCase()))
+    .map(u => ({ username: u.display_name, avatar_url: u.avatar_url, isOnline: onlineNames.has(u.display_name), is_developer: u.is_developer }));
 
-  // Gestion des mentions
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setInput(val);
 
-    e.target.style.height = 'auto';
-    e.target.style.height = Math.min(e.target.scrollHeight, MAX_TEXTAREA_HEIGHT) + 'px';
-    e.target.style.overflowY = e.target.scrollHeight > MAX_TEXTAREA_HEIGHT ? 'auto' : 'hidden';
-
-    startTyping();
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(stopTyping, 2000);
-
+    // Detect "@" trigger
     const cursorPos = e.target.selectionStart || val.length;
     const textBeforeCursor = val.slice(0, cursorPos);
     const atMatch = textBeforeCursor.match(/@(\w*)$/);
@@ -204,73 +186,151 @@ export function CommunityPage() {
   };
 
   const insertMention = (mentionUsername: string) => {
-    const cursorPos = textareaRef.current?.selectionStart || input.length;
+    const cursorPos = inputRef.current?.selectionStart || input.length;
     const textBeforeCursor = input.slice(0, cursorPos);
     const textAfterCursor = input.slice(cursorPos);
     const newBefore = textBeforeCursor.replace(/@(\w*)$/, `@${mentionUsername} `);
     setInput(newBefore + textAfterCursor);
     setShowMentions(false);
     setMentionFilter('');
-    textareaRef.current?.focus();
+    inputRef.current?.focus();
   };
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault(); // PAS d'envoi par Entrée
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showMentions && filteredMentionUsers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex(prev => (prev + 1) % filteredMentionUsers.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex(prev => (prev - 1 + filteredMentionUsers.length) % filteredMentionUsers.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        insertMention(filteredMentionUsers[mentionIndex].username);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowMentions(false);
+        return;
+      }
+    }
+    if (e.key === 'Enter') sendMessage();
+  };
+
+  // Notify mentioned users via toast (for online users)
+  const notifyMentionedUsers = (text: string) => {
+    const mentions = text.match(/@(\w+)/g);
+    if (!mentions) return;
+    // We show a toast for the sender confirming mentions were sent
+    const mentionedNames = mentions.map(m => m.slice(1));
+    const onlineNames = onlineUsers.map(u => u.username);
+    const notified = mentionedNames.filter(n => onlineNames.includes(n) && n !== username);
+    if (notified.length > 0) {
+      toast({ title: '📢 Mention envoyée', description: `${notified.join(', ')} sera notifié(e)` });
     }
   };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-    
     const text = input;
     setInput('');
     setShowEmoji(false);
-    
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    
-    try {
-      await supabase.from('community_messages').insert({
-        auteur: username,
-        avatar: userAvatar,
-        couleur: userColor,
-        contenu: text,
-        type: 'text',
-        reactions: {},
-        reply_to: replyingTo?.id || null,
-        user_id: user?.id,
-      });
-      
-      setReplyingTo(null);
-      stopTyping();
-      setTimeout(scrollToBottom, 100);
-      
-    } catch (err) {
-      console.error('❌ Erreur envoi message:', err);
-      toast({ title: 'Erreur', description: 'Impossible d\'envoyer le message', variant: 'destructive' });
-    }
+    setShowMentions(false);
+    const replyId = replyTo?.id || null;
+    setReplyTo(null);
+
+    notifyMentionedUsers(text);
+
+    // Force auto-scroll when user sends a message
+    shouldAutoScroll.current = true;
+
+    const optimisticMsg: Message = {
+      id: `temp-${Date.now()}`,
+      auteur: username,
+      avatar: userAvatar || username[0].toUpperCase(),
+      couleur: userColor,
+      contenu: text,
+      type: 'text',
+      created_at: new Date().toISOString(),
+      reactions: {},
+      reply_to: replyId,
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+
+    await supabase.from('community_messages').insert({
+      auteur: username,
+      avatar: userAvatar || username[0].toUpperCase(),
+      couleur: userColor,
+      contenu: text,
+      type: 'text',
+      reactions: {},
+      reply_to: replyId,
+      user_id: user?.id,
+    });
+  };
+
+  const getFileType = (file: File): 'image' | 'video' | 'file' => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type.startsWith('video/')) return 'video';
+    return 'file';
+  };
+
+  const getFileLabel = (file: File): string => {
+    const ext = file.name.split('.').pop()?.toUpperCase() || 'FICHIER';
+    if (file.type.startsWith('image/')) return '📷 Photo';
+    if (file.type.startsWith('video/')) return '🎥 Vidéo';
+    return `📎 ${file.name}`;
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_FILE_SIZE) { toast({ title: 'Fichier trop volumineux', description: 'Max 100 Mo.', variant: 'destructive' }); return; }
+    setUploading(true);
+    // Force scroll to bottom when sending a file
+    shouldAutoScroll.current = true;
+    const ext = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from('community-media').upload(fileName, file);
+    if (uploadError) { toast({ title: 'Erreur upload', description: uploadError.message, variant: 'destructive' }); setUploading(false); return; }
+    const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
+    const fileType = getFileType(file);
+    await supabase.from('community_messages').insert({
+      auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
+      contenu: getFileLabel(file), type: fileType,
+      image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
+    });
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const addReaction = async (msgId: string, emoji: string) => {
     const msg = messages.find(m => m.id === msgId);
     if (!msg) return;
-    
-    const reactions = { ...msg.reactions };
-    Object.keys(reactions).forEach(key => {
+    const reactions: Record<string, string[]> = {};
+    for (const [key, val] of Object.entries(msg.reactions)) {
+      reactions[key] = Array.isArray(val) ? [...val] : [];
+    }
+    // Remove user from ALL other emojis first (1 emoji per user per message)
+    for (const key of Object.keys(reactions)) {
       if (key !== emoji) {
-        reactions[key] = (reactions[key] || []).filter(u => u !== username);
+        reactions[key] = reactions[key].filter(u => u !== username);
         if (reactions[key].length === 0) delete reactions[key];
       }
-    });
-    
+    }
     const users = reactions[emoji] || [];
     if (users.includes(username)) {
+      // Toggle off same emoji
       reactions[emoji] = users.filter(u => u !== username);
       if (reactions[emoji].length === 0) delete reactions[emoji];
     } else {
+      // Set this emoji
       reactions[emoji] = [...users, username];
     }
-    
     await supabase.from('community_messages').update({ reactions }).eq('id', msgId);
   };
 
@@ -282,7 +342,6 @@ export function CommunityPage() {
       type: 'text',
       image_url: null,
     }).eq('id', msg.id);
-    toast({ title: 'Message supprimé', duration: 2000 });
   };
 
   const startEdit = (msg: Message) => {
@@ -309,347 +368,348 @@ export function CommunityPage() {
   const copyMessage = (msg: Message) => {
     setActiveMenu(null);
     navigator.clipboard.writeText(msg.contenu);
-    toast({ title: '✅ Copié !', duration: 2000 });
+    toast({ title: 'Copié !', description: 'Message copié dans le presse-papier.' });
   };
 
   const replyToMessage = (msg: Message) => {
     setActiveMenu(null);
-    setReplyingTo(msg);
-    textareaRef.current?.focus();
+    setReplyTo(msg);
   };
 
-  const handleVoiceMessage = async (audioBlob: Blob) => {
-    setUploading(true);
+  const renderMentionText = (text: string, isMe: boolean) => {
+    const parts = text.split(/(@\w+)/g);
+    return parts.map((part, i) => {
+      if (part.match(/^@\w+$/)) {
+        return (
+          <span key={i} className={`font-semibold ${isMe ? 'text-primary-foreground/90 underline' : 'text-primary'}`}>
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
+  const formatTime = (dateStr: string) => new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  const getReplyMsg = (id: string | null | undefined) => id ? messages.find(m => m.id === id) : null;
+
+  const handleDownload = async (url: string, type: string) => {
     try {
-      const fileName = `voice-${Date.now()}.webm`;
-      await supabase.storage.from('community-media').upload(fileName, audioBlob);
-      const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
-      await supabase.from('community_messages').insert({
-        auteur: username,
-        avatar: userAvatar,
-        couleur: userColor,
-        contenu: '🎤 Message vocal',
-        type: 'audio',
-        image_url: urlData.publicUrl,
-        reactions: {},
-        user_id: user?.id,
-      });
-      scrollToBottom();
-    } catch (err) {
-      console.error('❌ Erreur envoi vocal:', err);
-      toast({ title: 'Erreur', description: 'Impossible d\'envoyer le message vocal', variant: 'destructive' });
-    } finally {
-      setUploading(false);
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `community-${type}-${Date.now()}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      toast({ title: 'Erreur', description: 'Impossible de télécharger.', variant: 'destructive' });
     }
   };
 
-  const filteredMentionUsers = allProfiles
-    .filter(p => p.display_name && p.display_name !== username)
-    .filter(p => !mentionFilter || p.display_name.toLowerCase().includes(mentionFilter.toLowerCase()));
-
   if (authLoading || loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background">
+      <div className="flex items-center justify-center h-64">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* En-tête simple */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-          <Users size={16} />
-          <span>{onlineCount} en ligne</span>
+    <div className="max-w-3xl mx-auto flex flex-col animate-fade-in h-full px-2 pt-4 overflow-hidden">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="font-heading font-bold text-2xl">💬 Communauté</h1>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Users size={16} />
+            <span>{onlineCount} en ligne</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {userAvatar && <img src={userAvatar} alt="" className="w-6 h-6 rounded-full" />}
+            <span className="text-xs text-muted-foreground hidden sm:inline">{username}</span>
+            <button onClick={signOut} className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Déconnexion">
+              <LogOut size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Zone des messages */}
-      <div 
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 py-4 space-y-2"
-        style={{ paddingBottom: keyboardVisible ? '80px' : 'calc(80px + env(safe-area-inset-bottom))' }}
-      >
-        {messages.length === 0 ? (
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-2 touch-pan-y overscroll-contain">
+        {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <p className="text-lg">Aucun message pour le moment</p>
             <p className="text-sm">Soyez le premier à écrire ! 💬</p>
           </div>
-        ) : (
-          messages.map((msg, index) => {
-            const isMe = msg.auteur === username;
-            const isDeleted = msg.is_deleted;
-            const showAvatar = index === 0 || messages[index - 1]?.auteur !== msg.auteur;
-            // Views removed from inline hook call - handled separately
+        )}
+        {messages.map((msg) => {
+          const isMe = msg.auteur === username;
+          const isDeleted = msg.is_deleted;
+          const replyMsg = getReplyMsg(msg.reply_to);
 
-            return (
-              <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group/msg`}>
-                <div className={`flex max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end gap-2`}>
-                  {!isMe && showAvatar && (
-                    <img src={msg.avatar} alt={msg.auteur} className="w-8 h-8 rounded-full mb-1 object-cover flex-shrink-0" />
-                  )}
-                  {!isMe && !showAvatar && <div className="w-8 flex-shrink-0" />}
-
-                  <div className="flex flex-col">
-                    {!isMe && showAvatar && (
-                      <span className="text-xs text-muted-foreground ml-2 mb-1">{msg.auteur}</span>
-                    )}
-
-                    {isDeleted ? (
-                      <div className="px-3 py-2 bg-muted/50 italic text-muted-foreground text-sm rounded-2xl">
-                        {isMe ? '🗑️ Vous avez supprimé ce message' : msg.contenu}
-                      </div>
+          return (
+            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in group/msg`}>
+              <div className={`max-w-[80%] ${isMe ? 'order-2' : ''} relative`}>
+                {/* Author info */}
+                <div className="flex items-center gap-2 mb-1">
+                  {!isMe && (
+                    msg.avatar?.startsWith('http') ? (
+                      <img src={msg.avatar} alt={msg.auteur} className="w-7 h-7 rounded-full object-cover shrink-0" />
                     ) : (
-                      <>
-                        {editingMsg === msg.id ? (
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0" style={{ backgroundColor: msg.couleur }}>
+                        {msg.avatar}
+                      </div>
+                    )
+                  )}
+                   <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                     {!isMe && (
+                       <>
+                         <span className="font-medium text-foreground mr-1">{msg.auteur}</span>
+                         {allProfiles.find(p => p.display_name === msg.auteur)?.is_developer && (
+                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-accent/20 text-accent font-semibold"><Code size={11} /> Dev</span>
+                         )}
+                         {allProfiles.find(p => p.display_name === msg.auteur)?.is_admin_badge && (
+                           <ShieldCheck size={12} className="text-primary shrink-0" />
+                         )}
+                       </>
+                     )}
+                    {formatTime(msg.created_at)}
+                    {msg.is_edited && !isDeleted && <span className="ml-1 italic">(modifié)</span>}
+                  </span>
+
+                  {/* Context menu button */}
+                  {!isDeleted && !msg.id.startsWith('temp-') && (
+                    <div className="relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === msg.id ? null : msg.id); }}
+                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover/msg:opacity-100 transition-opacity"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+
+                      {activeMenu === msg.id && (
+                        <div className="absolute z-40 top-6 right-0 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[150px] animate-fade-in" onClick={e => e.stopPropagation()}>
+                          {/* Reply */}
+                          <button onClick={() => replyToMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                            <Reply size={14} /> Répondre
+                          </button>
+                          {/* Copy */}
+                          {msg.type === 'text' && (
+                            <button onClick={() => copyMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                              <Copy size={14} /> Copier
+                            </button>
+                          )}
+                          {/* Edit (own messages only) */}
+                          {isMe && msg.type === 'text' && (
+                            <button onClick={() => startEdit(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                              <Pencil size={14} /> Modifier
+                            </button>
+                          )}
+                          {/* Delete (own messages only) */}
+                          {isMe && (
+                            <button onClick={() => deleteMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-destructive hover:bg-muted transition-colors">
+                              <Trash2 size={14} /> Supprimer
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Reply preview */}
+                {replyMsg && (
+                  <div className="mb-1 pl-3 border-l-2 border-primary/50 text-xs text-muted-foreground truncate max-w-full">
+                    <span className="font-medium text-foreground">{replyMsg.auteur}</span>: {replyMsg.is_deleted ? 'Message supprimé' : replyMsg.contenu}
+                  </div>
+                )}
+
+                <div className={`rounded-2xl overflow-hidden ${isMe ? 'rounded-br-md' : 'rounded-bl-md'}`}>
+                  {/* Deleted message */}
+                  {isDeleted ? (
+                    <div className="p-3 bg-muted/50 italic text-muted-foreground text-sm">
+                      {isMe ? '🗑️ Vous avez supprimé ce message' : msg.contenu}
+                    </div>
+                  ) : (
+                    <>
+                      {msg.type === 'image' && msg.image_url && (
+                        <div className="relative group">
+                          <img src={msg.image_url} alt="Photo" className="max-w-full max-h-72 rounded-2xl cursor-pointer object-cover" onClick={() => setPreviewFile({ url: msg.image_url!, type: 'image' })} />
+                          <button onClick={() => handleDownload(msg.image_url!, 'photo')} className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background/90" title="Télécharger">
+                            <Download size={16} />
+                          </button>
+                        </div>
+                      )}
+                      {msg.type === 'video' && msg.image_url && (
+                        <div className="relative group">
+                          <video src={msg.image_url} controls className="max-w-full max-h-72 rounded-2xl" preload="metadata" />
+                          <button onClick={() => handleDownload(msg.image_url!, 'video')} className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background/90" title="Télécharger">
+                            <Download size={16} />
+                          </button>
+                        </div>
+                      )}
+                      {msg.type === 'file' && msg.image_url && (
+                        <div className="p-3 bg-secondary rounded-2xl flex items-center gap-3 group cursor-pointer" onClick={() => handleDownload(msg.image_url!, 'file')}>
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <FileText size={20} className="text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{msg.contenu}</p>
+                            <p className="text-xs text-muted-foreground">Cliquer pour télécharger</p>
+                          </div>
+                          <Download size={16} className="text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      )}
+                      {msg.type === 'text' && (
+                        editingMsg === msg.id ? (
                           <div className="flex items-center gap-1 p-1 bg-secondary rounded-xl">
                             <input
                               ref={editInputRef}
                               value={editInput}
                               onChange={e => setEditInput(e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter') confirmEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              className="flex-1 px-3 py-2 rounded-lg bg-background border border-border focus:border-primary outline-none text-sm"
+                              className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-background border border-border focus:border-primary outline-none text-foreground text-sm"
                             />
-                            <button onClick={confirmEdit} className="p-2 text-primary"><Check size={16} /></button>
-                            <button onClick={cancelEdit} className="p-2 text-muted-foreground"><X size={16} /></button>
+                            <button onClick={confirmEdit} className="p-2 text-primary hover:bg-muted rounded-lg"><Check size={16} /></button>
+                            <button onClick={cancelEdit} className="p-2 text-muted-foreground hover:bg-muted rounded-lg"><X size={16} /></button>
                           </div>
                         ) : (
-                          <div className={`px-3 py-2 rounded-2xl break-words ${
-                            isMe ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-secondary text-foreground rounded-bl-none'
-                          }`}>
-                            {msg.type === 'text' && <p className="text-sm whitespace-pre-wrap">{msg.contenu}</p>}
-                            {msg.type === 'image' && msg.image_url && (
-                              <img src={msg.image_url} alt="Image" className="max-w-full max-h-60 rounded-lg cursor-pointer" onClick={() => window.open(msg.image_url)} />
-                            )}
-                            {msg.type === 'audio' && msg.image_url && <audio src={msg.image_url} controls className="w-full max-w-[200px]" />}
+                          <div className={`p-3 ${isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                            <p className="text-sm leading-relaxed">
+                              {renderMentionText(msg.contenu, isMe)}
+                            </p>
                           </div>
-                        )}
-                      </>
-                    )}
+                        )
+                      )}
+                    </>
+                  )}
+                </div>
 
-                    <div className={`flex items-center gap-2 mt-1 text-[10px] text-muted-foreground ${isMe ? 'justify-end' : 'justify-start'} px-1`}>
-                      <span>{formatMessageTime(msg.created_at)}</span>
-                      {msg.is_edited && !isDeleted && <span className="italic">(modifié)</span>}
-                      
-                      {/* Reply indicator */}
-                      {msg.reply_to && (() => {
-                        const parent = messages.find(m => m.id === msg.reply_to);
-                        return parent ? (
-                          <div className="text-[10px] text-muted-foreground/70 mb-0.5 italic truncate max-w-[200px]">
-                            ↩ {parent.auteur}: {parent.contenu.slice(0, 40)}
-                          </div>
-                        ) : null;
-                      })()}
+                {/* Reactions */}
+                {!isDeleted && (
+                  <div className="flex items-center gap-1 mt-1 flex-wrap">
+                    {Object.entries(msg.reactions).filter(([, users]) => Array.isArray(users) && users.length > 0).map(([emoji, users]) => {
+                      const userList = Array.isArray(users) ? users : [];
+                      const iReacted = userList.includes(username);
+                      return (
+                        <button key={emoji} onClick={() => addReaction(msg.id, emoji)} className={`text-xs px-2 py-0.5 rounded-full transition-colors ${iReacted ? 'bg-primary/20 ring-1 ring-primary/50' : 'bg-muted hover:bg-muted/80'}`}>
+                          {emoji} {userList.length}
+                        </button>
+                      );
+                    })}
+                    <div className="flex gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                      {reactionEmojis.map(e => (
+                        <button key={e} onClick={() => addReaction(msg.id, e)} className="text-xs p-1 hover:bg-muted rounded transition-colors">
+                          {e}
+                        </button>
+                      ))}
                     </div>
                   </div>
-
-                  {/* Menu contextuel */}
-                  {!isDeleted && !msg.id.startsWith('temp-') && (
-                    <div className="relative">
-                      <button
-                        onClick={() => setActiveMenu(activeMenu === msg.id ? null : msg.id)}
-                        className="p-1 rounded opacity-0 group-hover/msg:opacity-100 transition-opacity"
-                      >
-                        <MoreVertical size={14} />
-                      </button>
-                      {activeMenu === msg.id && (
-                        <div className="absolute z-40 bottom-6 right-0 bg-popover border rounded-lg shadow-lg py-1 min-w-[150px]">
-                          <button onClick={() => replyToMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted"><Reply size={14} /> Répondre</button>
-                          <button onClick={() => copyMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted"><Copy size={14} /> Copier</button>
-                          {isMe && (
-                            <>
-                              <button onClick={() => startEdit(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted"><Pencil size={14} /> Modifier</button>
-                              <button onClick={() => deleteMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-destructive hover:bg-muted"><Trash2 size={14} /> Supprimer</button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {isMe && <div className="w-8 flex-shrink-0" />}
-                </div>
+                )}
               </div>
-            );
-          })
-        )}
-        <div ref={messagesEndRef} />
-
-        {/* Typing indicator */}
-        <TypingIndicator />
+            </div>
+          );
+        })}
       </div>
 
-      {/* Bouton pour descendre */}
-      {showScrollButton && messages.length > 0 && (
-        <button
-          onClick={scrollToBottom}
-          className="fixed bottom-24 right-4 z-20 w-10 h-10 rounded-full bg-card/80 backdrop-blur-sm border shadow-lg flex items-center justify-center hover:bg-card transition-all"
-        >
-          <ChevronDown size={20} />
-        </button>
+      {/* Emoji picker */}
+      {showEmoji && (
+        <div className="glass-card p-3 mb-2 animate-scale-in">
+          <div className="flex flex-wrap gap-2">
+            {emojiPicker.map(e => (
+              <button key={e} onClick={() => { setInput(prev => prev + e); setShowEmoji(false); }} className="text-xl hover:scale-125 transition-transform">
+                {e}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
-      {/* Mentions dropdown */}
+      {uploading && (
+        <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground animate-fade-in">
+          <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />
+          Envoi en cours...
+        </div>
+      )}
+
+      {/* Mention dropdown */}
       {showMentions && filteredMentionUsers.length > 0 && (
-        <div className="absolute bottom-24 left-4 right-4 z-30 bg-popover border rounded-xl shadow-lg max-h-40 overflow-y-auto">
+        <div className="bg-popover border border-border rounded-xl shadow-lg py-1 mb-1 max-h-40 overflow-y-auto animate-fade-in">
+          <div className="px-3 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Mentionner un utilisateur</div>
           {filteredMentionUsers.map((u, i) => (
             <button
-              key={u.id}
-              onClick={() => insertMention(u.display_name)}
-              className={`flex items-center gap-2 w-full px-3 py-2 text-sm ${i === mentionIndex ? 'bg-primary/10' : 'hover:bg-muted'}`}
+              key={u.username}
+              onClick={() => insertMention(u.username)}
+              className={`flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors ${i === mentionIndex ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'}`}
             >
-              <img src={u.avatar_url} alt="" className="w-6 h-6 rounded-full" />
-              <span>{u.display_name}</span>
+              {u.avatar_url ? (
+                <img src={u.avatar_url} alt={u.username} className="w-6 h-6 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-primary text-primary-foreground shrink-0">
+                  {u.username[0]?.toUpperCase()}
+                </div>
+              )}
+              <span className="truncate">{u.username}</span>
+              {u.is_developer && <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent font-semibold shrink-0">Dev</span>}
+              {u.isOnline && <span className="ml-auto w-2 h-2 rounded-full bg-green-500 shrink-0" title="En ligne" />}
             </button>
           ))}
         </div>
       )}
 
-      {/* Barre de saisie */}
-      <div className="sticky bottom-0 bg-card/95 backdrop-blur-md border-t border-border z-20">
-        {replyingTo && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 border-l-4 border-primary">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-primary">Réponse à {replyingTo.auteur}</p>
-              <p className="text-xs text-muted-foreground truncate">{replyingTo.contenu}</p>
-            </div>
-            <button onClick={() => setReplyingTo(null)}><X size={14} /></button>
-          </div>
-        )}
-
-        <div className="flex items-end gap-2 p-3">
-          <input ref={fileInputRef} type="file" className="hidden" onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            setUploading(true);
-            try {
-              const ext = file.name.split('.').pop();
-              const fileName = `${Date.now()}.${ext}`;
-              await supabase.storage.from('community-media').upload(fileName, file);
-              const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
-              await supabase.from('community_messages').insert({
-                auteur: username,
-                avatar: userAvatar,
-                couleur: userColor,
-                contenu: file.type.startsWith('image/') ? '📷 Photo' : `📎 ${file.name}`,
-                type: file.type.startsWith('image/') ? 'image' : 'file',
-                image_url: urlData.publicUrl,
-                reactions: {},
-                user_id: user?.id,
-              });
-            } catch (err) {
-              toast({ title: 'Erreur', variant: 'destructive' });
-            } finally {
-              setUploading(false);
-            }
-          }} />
-          
-          <button onClick={() => setShowEmoji(!showEmoji)} className="p-2.5 rounded-full hover:bg-secondary">
-            <Smile size={20} />
-          </button>
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2.5 rounded-full hover:bg-secondary disabled:opacity-50">
-            <Paperclip size={20} />
-          </button>
-          <VoiceRecorder onSend={handleVoiceMessage} />
-
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleInputKeyDown}
-            placeholder="Écrivez un message..."
-            className="flex-1 px-4 py-2.5 rounded-2xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none resize-none"
-            rows={1}
-            style={{ maxHeight: MAX_TEXTAREA_HEIGHT + 'px' }}
-          />
-
-          <button onClick={sendMessage} disabled={!input.trim()} className="p-2.5 rounded-full bg-primary text-primary-foreground disabled:opacity-30">
-            <Send size={18} />
+      {/* Reply banner */}
+      {replyTo && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-secondary/80 rounded-t-xl border-l-2 border-primary text-sm animate-fade-in">
+          <Reply size={14} className="text-primary shrink-0" />
+          <span className="truncate text-muted-foreground">
+            Répondre à <span className="font-medium text-foreground">{replyTo.auteur}</span>: {replyTo.contenu}
+          </span>
+          <button onClick={() => setReplyTo(null)} className="ml-auto shrink-0 p-1 hover:bg-muted rounded">
+            <X size={14} />
           </button>
         </div>
+      )}
 
-        {showEmoji && (
-          <div className="px-3 pb-3">
-            <div className="bg-secondary rounded-2xl p-3 flex flex-wrap gap-2">
-              {emojiPicker.map(e => (
-                <button key={e} onClick={() => { setInput(prev => prev + e); setShowEmoji(false); }} className="text-xl hover:scale-125">
-                  {e}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+      {/* Input */}
+       <div className="sticky bottom-0 flex items-center gap-2 py-2 border-t border-border bg-background z-10 md:pb-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))]" style={{ flexShrink: 0 }}>
+        <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
+        <div className="flex items-center shrink-0">
+          <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <Smile size={20} />
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
+            <Paperclip size={20} />
+          </button>
+        </div>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={handleInputChange}
+          onKeyDown={handleInputKeyDown}
+          placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
+          className="flex-1 min-w-0 px-4 py-2 rounded-full bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm"
+        />
+        <button onClick={sendMessage} disabled={!input.trim()} className="p-2 rounded-full text-primary hover:bg-secondary transition-colors disabled:opacity-30 shrink-0">
+          <Send size={20} />
+        </button>
+      </div>
 
-        {uploading && (
-          <div className="px-4 pb-3 text-xs text-muted-foreground">
-            <div className="animate-spin w-3 h-3 border-2 border-primary border-t-transparent rounded-full inline-block mr-2" />
-            Envoi...
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TypingIndicator() {
-  const [typingUsers, setTypingUsers] = useState<any[]>([]);
-  
-  useEffect(() => {
-    const channel = supabase
-      .channel('typing_status')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'typing_status' }, async () => {
-        const { data } = await supabase
-          .from('typing_status' as any)
-          .select('user_id, updated_at')
-          .gt('updated_at', new Date(Date.now() - 3000).toISOString());
-        if (data) {
-          const userIds = (data as any[]).map((d: any) => d.user_id);
-          const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds);
-          setTypingUsers((data as any[]).map((d: any) => ({ user_id: d.user_id, profiles: profiles?.find(p => p.id === d.user_id) || { display_name: '...', avatar_url: '' } })));
-        }
-      })
-      .subscribe();
-      
-    const interval = setInterval(async () => {
-      const { data } = await supabase
-        .from('typing_status' as any)
-        .select('user_id, updated_at')
-        .gt('updated_at', new Date(Date.now() - 3000).toISOString());
-      if (data) {
-        const userIds = (data as any[]).map((d: any) => d.user_id);
-        if (userIds.length > 0) {
-          const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds);
-          setTypingUsers((data as any[]).map((d: any) => ({ user_id: d.user_id, profiles: profiles?.find(p => p.id === d.user_id) || { display_name: '...', avatar_url: '' } })));
-        } else {
-          setTypingUsers([]);
-        }
-      }
-    }, 1000);
-    
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(interval);
-    };
-  }, []);
-  
-  if (typingUsers.length === 0) return null;
-  
-  return (
-    <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
-      <div className="flex -space-x-2">
-        {typingUsers.slice(0, 3).map((user) => (
-          <img key={user.user_id} src={user.profiles.avatar_url} alt="" className="w-6 h-6 rounded-full border-2 border-background" />
-        ))}
-      </div>
-      <span>
-        {typingUsers.length === 1 ? `${typingUsers[0].profiles.display_name} écrit...` : `${typingUsers.length} personnes écrivent...`}
-      </span>
-      <div className="flex gap-1">
-        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
-      </div>
+      {/* Fullscreen preview */}
+      {previewFile && (
+        <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPreviewFile(null)}>
+          <button onClick={() => setPreviewFile(null)} className="absolute top-4 right-4 p-2 rounded-full bg-secondary hover:bg-muted transition-colors z-10"><X size={24} /></button>
+          <button onClick={(e) => { e.stopPropagation(); handleDownload(previewFile.url, previewFile.type); }} className="absolute top-4 right-16 p-2 rounded-full bg-secondary hover:bg-muted transition-colors z-10" title="Télécharger"><Download size={24} /></button>
+          {previewFile.type === 'image' ? (
+            <img src={previewFile.url} alt="Preview" className="max-w-full max-h-[90vh] object-contain rounded-xl" onClick={e => e.stopPropagation()} />
+          ) : (
+            <video src={previewFile.url} controls autoPlay className="max-w-full max-h-[90vh] rounded-xl" onClick={e => e.stopPropagation()} />
+          )}
+        </div>
+      )}
     </div>
   );
 }

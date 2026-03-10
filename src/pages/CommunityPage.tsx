@@ -335,6 +335,11 @@ export function CommunityPage() {
   };
 
   const deleteMessage = async (msg: Message) => {
+    // Sécurité : seul l auteur du message peut le supprimer
+    if (msg.auteur !== username) {
+      toast({ title: 'Action non autorisée', description: 'Vous ne pouvez supprimer que vos propres messages.', variant: 'destructive' });
+      return;
+    }
     setActiveMenu(null);
     await supabase.from('community_messages').update({
       is_deleted: true,
@@ -345,6 +350,8 @@ export function CommunityPage() {
   };
 
   const startEdit = (msg: Message) => {
+    // Sécurité : seul l auteur peut modifier son message
+    if (msg.auteur !== username) return;
     setActiveMenu(null);
     setEditingMsg(msg.id);
     setEditInput(msg.contenu);

@@ -122,10 +122,21 @@ export function CommunityPage() {
   }, [fetchMessages]);
 
   const prevMsgCount = useRef(0);
+  const initialScrollDone = useRef(false);
+
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
-    // Only auto-scroll if user is near bottom or new messages were added
+    if (!el || messages.length === 0) return;
+
+    // Premier chargement : scroll immédiat sans animation
+    if (!initialScrollDone.current) {
+      el.scrollTop = el.scrollHeight;
+      initialScrollDone.current = true;
+      prevMsgCount.current = messages.length;
+      return;
+    }
+
+    // Nouveaux messages : scroll smooth uniquement si l'utilisateur est près du bas
     const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
     const hasNewMessages = messages.length > prevMsgCount.current;
     if (isNearBottom && hasNewMessages) {

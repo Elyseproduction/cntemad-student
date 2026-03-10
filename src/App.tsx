@@ -15,6 +15,8 @@ import { InstallBanner } from "@/components/InstallBanner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { NotificationOverlay } from "@/components/NotificationOverlay";
 
+import { ProfileOpenProvider } from "@/contexts/ProfileOpenContext";
+
 const queryClient = new QueryClient();
 
 function AuthGate({ children }: { children: React.ReactNode }) {
@@ -66,16 +68,18 @@ function AppContent() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <UpdateBanner />
-      <AppProvider>
-        <AuthGate>
-          <AppContent />
-        </AuthGate>
-        <NotificationOverlay />
-        <InstallBanner />
-      </AppProvider>
+      <ProfileOpenProvider>
+        <Toaster />
+        <Sonner />
+        <UpdateBanner />
+        <AppProvider>
+          <AuthGate>
+            <AppContent />
+          </AuthGate>
+          <NotificationOverlay />
+          <InstallBanner />
+        </AppProvider>
+      </ProfileOpenProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

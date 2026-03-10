@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import { BookOpen, Brain, MessageCircle, Video, Settings, LogOut, Moon, Sun, Lock, Menu, X } from 'lucide-react';
+import { BookOpen, Brain, MessageCircle, Video, Settings, LogOut, Moon, Sun, Lock, Menu, X, Download } from 'lucide-react';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useApp } from '@/contexts/AppContext';
 import { AdminModal } from '@/components/AdminModal';
 import { ProfileMenu } from '@/components/ProfileMenu';
@@ -27,6 +28,8 @@ export const useOnlineUsers = () => useContext(OnlineContext);
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { isAdmin, logout, darkMode, toggleDarkMode, activeTab, setActiveTab } = useApp();
+  const { isInstallable, isInstalled, install } = usePWAInstall();
+  const canInstall = isInstallable && !isInstalled;
   const [showAdmin, setShowAdmin] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -177,6 +180,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Settings size={20} className="shrink-0" />
             {sidebarOpen && <span>Admin</span>}
           </button>
+          {canInstall && (
+            <button onClick={() => install()} className="nav-item w-full text-primary hover:opacity-90">
+              <Download size={20} className="shrink-0" />
+              {sidebarOpen && <span>Installer l'app</span>}
+            </button>
+          )}
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="nav-item w-full">
             <Menu size={20} className="shrink-0" />
             {sidebarOpen && <span>{sidebarOpen ? 'Réduire' : ''}</span>}
@@ -257,6 +266,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <button onClick={() => { setShowAdmin(true); setMobileMenuOpen(false); }} className="nav-item w-full">
                 <Settings size={20} /> <span>Admin</span>
               </button>
+              {canInstall && (
+                <button onClick={() => { install(); setMobileMenuOpen(false); }} className="nav-item w-full text-primary font-medium">
+                  <Download size={20} /> <span>Installer l'application</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

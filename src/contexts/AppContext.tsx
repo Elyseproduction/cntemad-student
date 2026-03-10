@@ -57,6 +57,8 @@ export interface Video {
   matiere: string;
   date: string;
   created_at?: string;
+  videoUrl?: string; // URL for locally uploaded videos
+  type?: 'youtube' | 'local';
 }
 
 export interface ExerciseHistory {

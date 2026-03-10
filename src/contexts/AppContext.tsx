@@ -78,6 +78,7 @@ interface AppContextType {
   isAdmin: boolean;
   login: (password: string) => boolean;
   logout: () => void;
+  changeAdminPassword: (newPassword: string) => void;
   subjects: Subject[];
   setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>;
   messages: CommunityMessage[];
@@ -453,13 +454,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('app_exercise_history', JSON.stringify(exerciseHistory));
   }, [exerciseHistory]);
 
+  const getAdminPassword = () => localStorage.getItem('app_admin_password') || 'ZahGasy1';
+
   const login = useCallback((password: string) => {
-    if (password === 'ZahGasy1') {
+    if (password === getAdminPassword()) {
       setIsAdmin(true);
       localStorage.setItem('app_admin', 'true');
       return true;
     }
     return false;
+  }, []);
+
+  const changeAdminPassword = useCallback((newPassword: string) => {
+    localStorage.setItem('app_admin_password', newPassword);
   }, []);
 
   const logout = useCallback(() => {
@@ -481,7 +488,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      isAdmin, login, logout,
+      isAdmin, login, logout, changeAdminPassword,
       subjects, setSubjects,
       messages, setMessages,
       videos, setVideos,

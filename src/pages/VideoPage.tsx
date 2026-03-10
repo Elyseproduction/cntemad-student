@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '@/contexts/AppContext';
 import { Plus, Trash2, X, Play, Video, Filter, ChevronLeft, ChevronRight, Calendar, BookOpen, Maximize2, Minimize2 } from 'lucide-react';
 
@@ -192,14 +193,17 @@ export function VideoPage() {
         </div>
       )}
 
-      {/* Professional Video Player Modal */}
+      {/* Professional Video Player Modal — rendered via portal to escape any z-index stacking context */}
       {selectedVideo && (() => {
         const video = videos.find(v => v.id === selectedVideo);
         if (!video) return null;
-        return (
+        return createPortal(
           <div
-            className="fixed inset-0 z-50 flex flex-col animate-fade-in"
-            style={{ animationDuration: '0.2s', backgroundColor: 'rgba(0,0,0,0.97)' }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 99999,
+              display: 'flex', flexDirection: 'column',
+              backgroundColor: '#000',
+            }}
           >
             {/* Top bar */}
             <div
@@ -343,7 +347,7 @@ export function VideoPage() {
               </div>
             </div>
           </div>
-        );
+        , document.body);
       })()}
     </div>
   );

@@ -256,7 +256,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-72 bg-card border-r border-border p-4 animate-slide-in-right flex flex-col shadow-2xl">
+          <div className="absolute left-0 top-0 w-72 bg-card border-r border-border p-4 animate-slide-in-right flex flex-col shadow-2xl overflow-y-auto"
+            style={{ bottom: `calc(${NAV_H}px + env(safe-area-inset-bottom))` }}
+          >
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h1 className="font-heading font-bold text-xl gradient-text">UniLearn</h1>
@@ -273,7 +275,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </button>
               ))}
             </nav>
-            <div className="space-y-0.5 border-t border-border pt-3">
+            <div className="space-y-0.5 border-t border-border pt-3 mt-auto">
               <button onClick={toggleDarkMode} className="nav-item w-full">
                 {darkMode ? <Sun size={20} /> : <Moon size={20} />}<span>{darkMode ? 'Mode clair' : 'Mode sombre'}</span>
               </button>

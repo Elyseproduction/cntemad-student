@@ -4,45 +4,46 @@ import { useApp } from '@/contexts/AppContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Trash2, X, Play, Video, Filter, ChevronLeft, ChevronRight, Calendar, BookOpen, Maximize2, Minimize2, Upload, FileVideo, Loader2 } from 'lucide-react';
 
-async function generateAIThumbnail(titre: string, description: string, matiere: string): Promise<string | null> {
-  try {
-    const prompt = `Tu es un designer graphique expert. Génère du code SVG (600x338px, ratio 16:9) pour une miniature vidéo éducative.
+function extractVideoThumbnail(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    video.crossOrigin = 'anonymous';
 
-Contexte de la vidéo :
-- Titre : ${titre}
-- Description : ${description || 'Aucune description'}
-- Matière : ${matiere || 'Général'}
+    const cleanup = () => URL.revokeObjectURL(url);
 
-Règles STRICTES :
-- SVG valide, viewBox="0 0 600 338", xmlns="http://www.w3.org/2000/svg"
-- Fond avec dégradé de couleurs liées à la matière (sombres, modernes, style dark UI)
-- Titre bien lisible en blanc, centré, taille adaptée (max 2 lignes)
-- Un grand emoji ou symbole représentatif de la matière
-- Badge matière en bas à gauche
-- Bouton play circulaire centré semi-transparent
-- Style moderne, minimaliste, professionnel
-- Textes encodés proprement (pas de caractères spéciaux non échappés dans SVG)
-- RÉPONDS UNIQUEMENT avec le code SVG brut, sans balises markdown, sans explication`;
+    video.onloadedmetadata = () => {
+      // Seek to 10% of duration (or 3s max) to get a meaningful frame
+      video.currentTime = Math.min(video.duration * 0.1, 3);
+    };
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
-    const data = await response.json();
-    const svgText = data.content?.map((b: any) => b.text || '').join('').trim();
-    if (!svgText || !svgText.includes('<svg')) return null;
-    // Clean and encode as data URL
-    const clean = svgText.replace(/```svg|```xml|```/g, '').trim();
-    const blob = new Blob([clean], { type: 'image/svg+xml' });
-    return URL.createObjectURL(blob);
-  } catch {
-    return null;
-  }
+    video.onseeked = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 600;
+        canvas.height = 338;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { cleanup(); resolve(null); return; }
+        ctx.drawImage(video, 0, 0, 600, 338);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        cleanup();
+        resolve(dataUrl);
+      } catch {
+        cleanup();
+        resolve(null);
+      }
+    };
+
+    video.onerror = () => { cleanup(); resolve(null); };
+    // Timeout fallback after 8 seconds
+    setTimeout(() => { cleanup(); resolve(null); }, 8000);
+
+    video.src = url;
+    video.load();
+  });
 }
 
 function getYoutubeId(url: string): string {
@@ -65,7 +66,6 @@ export function VideoPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [generatingThumb, setGeneratingThumb] = useState(false);
 
   const filteredVideos = useMemo(() => {
     const filtered = filter ? videos.filter(v => v.matiere === filter) : videos;
@@ -113,20 +113,16 @@ export function VideoPage() {
       setUploadProgress(80);
       const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
 
-      // Générer miniature IA
-      setGeneratingThumb(true);
-      const thumbDataUrl = await generateAIThumbnail(newTitle, newDesc, newMatiere);
-      setGeneratingThumb(false);
-
-      // Upload thumbnail SVG to Supabase storage if generated
+      // Extraire une frame de la vidéo comme miniature
       let finalThumbUrl: string | undefined;
+      const thumbDataUrl = await extractVideoThumbnail(localFile);
       if (thumbDataUrl) {
         try {
-          const svgResp = await fetch(thumbDataUrl);
-          const svgBlob = await svgResp.blob();
-          const thumbFileName = `thumbnails/${Date.now()}-thumb.svg`;
-          const { error: thumbErr } = await supabase.storage.from('community-media').upload(thumbFileName, svgBlob, {
-            contentType: 'image/svg+xml',
+          const res = await fetch(thumbDataUrl);
+          const blob = await res.blob();
+          const thumbFileName = `thumbnails/${Date.now()}-thumb.jpg`;
+          const { error: thumbErr } = await supabase.storage.from('community-media').upload(thumbFileName, blob, {
+            contentType: 'image/jpeg',
             cacheControl: '3600',
             upsert: false,
           });
@@ -134,8 +130,7 @@ export function VideoPage() {
             const { data: thumbUrl } = supabase.storage.from('community-media').getPublicUrl(thumbFileName);
             finalThumbUrl = thumbUrl.publicUrl;
           }
-          URL.revokeObjectURL(thumbDataUrl);
-        } catch { /* ignore thumbnail upload errors */ }
+        } catch { /* si ça échoue, on continue sans miniature */ }
       }
 
       setVideos(prev => [...prev, {
@@ -277,17 +272,14 @@ export function VideoPage() {
                     </div>
                   )}
                 </div>
-                {(uploading || generatingThumb) && (
+                {uploading && (
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Loader2 size={12} className="animate-spin" />
-                        {generatingThumb ? '🎨 Génération miniature IA...' : 'Upload en cours...'}
-                      </span>
-                      <span>{generatingThumb ? '90%' : `${uploadProgress}%`}</span>
+                      <span className="flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> Upload en cours...</span>
+                      <span>{uploadProgress}%</span>
                     </div>
                     <div className="w-full bg-secondary rounded-full h-2">
-                      <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: generatingThumb ? '90%' : `${uploadProgress}%` }} />
+                      <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                     </div>
                   </div>
                 )}

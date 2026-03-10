@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code, Mic, MicOff, StopCircle } from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,15 +45,9 @@ export function CommunityPage() {
   const [showMentions, setShowMentions] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
   const [mentionIndex, setMentionIndex] = useState(0);
-  const [isRecording, setIsRecording] = useState(false);
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '');
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
   const userAvatar = profile?.avatar_url || '';
@@ -70,11 +64,6 @@ export function CommunityPage() {
         ...m,
         reactions: (m.reactions as Record<string, string[]>) || {},
       })));
-      // Scroll to bottom after initial load
-      setTimeout(() => {
-        const el = scrollRef.current;
-        if (el) el.scrollTop = el.scrollHeight;
-      }, 100);
     }
     setLoading(false);
   }, []);
@@ -127,29 +116,14 @@ export function CommunityPage() {
   }, [fetchMessages]);
 
   const prevMsgCount = useRef(0);
-  const shouldAutoScroll = useRef(true);
-
-  // Track if user is near bottom to decide whether to auto-scroll
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const handleScroll = () => {
-      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
-      shouldAutoScroll.current = isNearBottom;
-    };
-    el.addEventListener('scroll', handleScroll, { passive: true });
-    return () => el.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
+    // Only auto-scroll if user is near bottom or new messages were added
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
     const hasNewMessages = messages.length > prevMsgCount.current;
-    if (hasNewMessages && shouldAutoScroll.current) {
-      // Use requestAnimationFrame to ensure DOM is updated before scrolling
-      requestAnimationFrame(() => {
-        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-      });
+    if (isNearBottom && hasNewMessages) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }
     prevMsgCount.current = messages.length;
   }, [messages]);
@@ -173,7 +147,7 @@ export function CommunityPage() {
     .filter(u => !mentionFilter || u.display_name.toLowerCase().includes(mentionFilter.toLowerCase()))
     .map(u => ({ username: u.display_name, avatar_url: u.avatar_url, isOnline: onlineNames.has(u.display_name), is_developer: u.is_developer }));
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setInput(val);
 
@@ -192,7 +166,7 @@ export function CommunityPage() {
   };
 
   const insertMention = (mentionUsername: string) => {
-    const cursorPos = (inputRef.current?.selectionStart) ?? input.length;
+    const cursorPos = inputRef.current?.selectionStart || input.length;
     const textBeforeCursor = input.slice(0, cursorPos);
     const textAfterCursor = input.slice(cursorPos);
     const newBefore = textBeforeCursor.replace(/@(\w*)$/, `@${mentionUsername} `);
@@ -202,7 +176,7 @@ export function CommunityPage() {
     inputRef.current?.focus();
   };
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (showMentions && filteredMentionUsers.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -224,17 +198,7 @@ export function CommunityPage() {
         return;
       }
     }
-    if (e.key === 'Enter') {
-      if (isMobile) {
-        // Mobile : Enter = saut de ligne (comportement natif)
-        return;
-      } else {
-        // PC : Enter = envoyer, Shift+Enter = saut de ligne
-        if (e.shiftKey) return;
-        e.preventDefault();
-        sendMessage();
-      }
-    }
+    if (e.key === 'Enter') sendMessage();
   };
 
   // Notify mentioned users via toast (for online users)
@@ -250,87 +214,6 @@ export function CommunityPage() {
     }
   };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-      setRecordingDuration(0);
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await uploadVoiceMessage(audioBlob);
-      };
-
-      mediaRecorder.start(100);
-      setIsRecording(true);
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration(prev => prev + 1);
-      }, 1000);
-    } catch {
-      toast({ title: 'Microphone inaccessible', description: "Autorisez l'accès au micro.", variant: 'destructive' });
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
-      setRecordingDuration(0);
-    }
-  };
-
-  const cancelRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.ondataavailable = null;
-      mediaRecorderRef.current.onstop = null;
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream?.getTracks().forEach(t => t.stop());
-    }
-    setIsRecording(false);
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
-    }
-    setRecordingDuration(0);
-    audioChunksRef.current = [];
-  };
-
-  const uploadVoiceMessage = async (audioBlob: Blob) => {
-    setUploading(true);
-    shouldAutoScroll.current = true;
-    const fileName = `voice-${Date.now()}-${Math.random().toString(36).slice(2)}.webm`;
-    const { error: uploadError } = await supabase.storage.from('community-media').upload(fileName, audioBlob);
-    if (uploadError) {
-      toast({ title: 'Erreur upload', description: uploadError.message, variant: 'destructive' });
-      setUploading(false);
-      return;
-    }
-    const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
-    await supabase.from('community_messages').insert({
-      auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
-      contenu: '🎤 Message vocal', type: 'audio',
-      image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
-    });
-    setUploading(false);
-  };
-
-  const formatDuration = (seconds: number) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
-
   const sendMessage = async () => {
     if (!input.trim()) return;
     const text = input;
@@ -341,9 +224,6 @@ export function CommunityPage() {
     setReplyTo(null);
 
     notifyMentionedUsers(text);
-
-    // Force auto-scroll when user sends a message
-    shouldAutoScroll.current = true;
 
     const optimisticMsg: Message = {
       id: `temp-${Date.now()}`,
@@ -388,8 +268,6 @@ export function CommunityPage() {
     if (!file) return;
     if (file.size > MAX_FILE_SIZE) { toast({ title: 'Fichier trop volumineux', description: 'Max 100 Mo.', variant: 'destructive' }); return; }
     setUploading(true);
-    // Force scroll to bottom when sending a file
-    shouldAutoScroll.current = true;
     const ext = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const { error: uploadError } = await supabase.storage.from('community-media').upload(fileName, file);
@@ -432,11 +310,6 @@ export function CommunityPage() {
   };
 
   const deleteMessage = async (msg: Message) => {
-    // Sécurité : seul l auteur du message peut le supprimer
-    if (msg.auteur !== username) {
-      toast({ title: 'Action non autorisée', description: 'Vous ne pouvez supprimer que vos propres messages.', variant: 'destructive' });
-      return;
-    }
     setActiveMenu(null);
     await supabase.from('community_messages').update({
       is_deleted: true,
@@ -447,8 +320,6 @@ export function CommunityPage() {
   };
 
   const startEdit = (msg: Message) => {
-    // Sécurité : seul l auteur peut modifier son message
-    if (msg.auteur !== username) return;
     setActiveMenu(null);
     setEditingMsg(msg.id);
     setEditInput(msg.contenu);
@@ -481,23 +352,16 @@ export function CommunityPage() {
   };
 
   const renderMentionText = (text: string, isMe: boolean) => {
-    return text.split('\n').map((line, lineIdx, arr) => {
-      const parts = line.split(/(@\w+)/g);
-      return (
-        <span key={lineIdx}>
-          {parts.map((part, i) => {
-            if (part.match(/^@\w+$/)) {
-              return (
-                <span key={i} className={`font-semibold ${isMe ? 'text-primary-foreground/90 underline' : 'text-primary'}`}>
-                  {part}
-                </span>
-              );
-            }
-            return part;
-          })}
-          {lineIdx < arr.length - 1 && <br />}
-        </span>
-      );
+    const parts = text.split(/(@\w+)/g);
+    return parts.map((part, i) => {
+      if (part.match(/^@\w+$/)) {
+        return (
+          <span key={i} className={`font-semibold ${isMe ? 'text-primary-foreground/90 underline' : 'text-primary'}`}>
+            {part}
+          </span>
+        );
+      }
+      return part;
     });
   };
 
@@ -532,19 +396,15 @@ export function CommunityPage() {
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col animate-fade-in h-full px-2 pt-4 overflow-hidden">
-      <div className="flex items-center justify-end mb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Users size={16} />
-            <span>{onlineCount} en ligne</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {userAvatar && <img src={userAvatar} alt="" className="w-6 h-6 rounded-full" />}
-            <span className="text-xs text-muted-foreground hidden sm:inline">{username}</span>
-            <button onClick={signOut} className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Déconnexion">
-              <LogOut size={14} />
-            </button>
-          </div>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="font-heading font-bold text-2xl">💬 Communauté</h1>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/60 border border-border">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+          </span>
+          <Users size={14} className="text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">{onlineCount} en ligne</span>
         </div>
       </div>
 
@@ -660,15 +520,6 @@ export function CommunityPage() {
                           <button onClick={() => handleDownload(msg.image_url!, 'video')} className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background/90" title="Télécharger">
                             <Download size={16} />
                           </button>
-                        </div>
-                      )}
-                      {msg.type === 'audio' && msg.image_url && (
-                        <div className={`p-3 rounded-2xl ${isMe ? 'bg-primary' : 'bg-secondary'}`}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <Mic size={14} className={isMe ? 'text-primary-foreground/80' : 'text-primary'} />
-                            <span className={`text-xs font-medium ${isMe ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>Message vocal</span>
-                          </div>
-                          <audio src={msg.image_url} controls className="w-full max-w-[260px] h-8 rounded-lg" preload="metadata" />
                         </div>
                       )}
                       {msg.type === 'file' && msg.image_url && (
@@ -794,57 +645,27 @@ export function CommunityPage() {
       )}
 
       {/* Input */}
-       <div className="sticky bottom-0 flex flex-col border-t border-border bg-background z-10 md:pb-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))]" style={{ flexShrink: 0 }}>
-        {/* Recording indicator */}
-        {isRecording && (
-          <div className="flex items-center gap-3 px-4 py-2 bg-destructive/10 border-b border-destructive/20 animate-fade-in">
-            <span className="w-2.5 h-2.5 rounded-full bg-destructive animate-pulse shrink-0" />
-            <span className="text-sm font-medium text-destructive flex-1">Enregistrement... {formatDuration(recordingDuration)}</span>
-            <button onClick={cancelRecording} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted transition-colors">
-              Annuler
-            </button>
-          </div>
-        )}
-        <div className="flex items-center gap-2 py-2">
-          <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
-          <div className="flex items-center shrink-0">
-            <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-              <Smile size={20} />
-            </button>
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploading || isRecording} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
-              <Paperclip size={20} />
-            </button>
-          </div>
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleInputKeyDown}
-            disabled={isRecording}
-            rows={1}
-            placeholder={isRecording ? 'Enregistrement en cours...' : replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
-            className="flex-1 min-w-0 px-4 py-2 rounded-2xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm disabled:opacity-50 resize-none overflow-hidden"
-            style={{ maxHeight: '120px', overflowY: input.split('\n').length > 4 ? 'auto' : 'hidden' }}
-            onInput={(e) => {
-              const el = e.currentTarget;
-              el.style.height = 'auto';
-              el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-            }}
-          />
-          {input.trim() ? (
-            <button onClick={sendMessage} className="p-2 rounded-full text-primary hover:bg-secondary transition-colors shrink-0">
-              <Send size={20} />
-            </button>
-          ) : isRecording ? (
-            <button onClick={stopRecording} className="p-2 rounded-full bg-destructive text-white hover:bg-destructive/80 transition-colors shrink-0 animate-pulse">
-              <StopCircle size={20} />
-            </button>
-          ) : (
-            <button onClick={startRecording} disabled={uploading} className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-secondary transition-colors shrink-0 disabled:opacity-50">
-              <Mic size={20} />
-            </button>
-          )}
+       <div className="sticky bottom-0 flex items-center gap-2 py-2 border-t border-border bg-background z-10 md:pb-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))]" style={{ flexShrink: 0 }}>
+        <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
+        <div className="flex items-center shrink-0">
+          <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <Smile size={20} />
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
+            <Paperclip size={20} />
+          </button>
         </div>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={handleInputChange}
+          onKeyDown={handleInputKeyDown}
+          placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
+          className="flex-1 min-w-0 px-4 py-2 rounded-full bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm"
+        />
+        <button onClick={sendMessage} disabled={!input.trim()} className="p-2 rounded-full text-primary hover:bg-secondary transition-colors disabled:opacity-30 shrink-0">
+          <Send size={20} />
+        </button>
       </div>
 
       {/* Fullscreen preview */}

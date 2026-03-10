@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code } from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code, Mic, MicOff, Play } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
@@ -47,7 +47,13 @@ export function CommunityPage() {
   const [mentionIndex, setMentionIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordDuration, setRecordDuration] = useState(0);
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
   const userAvatar = profile?.avatar_url || '';
@@ -147,7 +153,7 @@ export function CommunityPage() {
     .filter(u => !mentionFilter || u.display_name.toLowerCase().includes(mentionFilter.toLowerCase()))
     .map(u => ({ username: u.display_name, avatar_url: u.avatar_url, isOnline: onlineNames.has(u.display_name), is_developer: u.is_developer }));
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setInput(val);
 
@@ -176,7 +182,7 @@ export function CommunityPage() {
     inputRef.current?.focus();
   };
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (showMentions && filteredMentionUsers.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -198,7 +204,12 @@ export function CommunityPage() {
         return;
       }
     }
-    if (e.key === 'Enter') sendMessage();
+    if (e.key === 'Enter') {
+      if (isMobile) return; // Android: Enter = new line native
+      if (e.shiftKey) return; // PC: Shift+Enter = new line
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
   // Notify mentioned users via toast (for online users)
@@ -212,6 +223,62 @@ export function CommunityPage() {
     if (notified.length > 0) {
       toast({ title: '📢 Mention envoyée', description: `${notified.join(', ')} sera notifié(e)` });
     }
+  };
+
+  const formatDuration = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+      audioChunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        await uploadVoiceMessage(blob);
+      };
+      mr.start();
+      setIsRecording(true);
+      setRecordDuration(0);
+      recordTimerRef.current = setInterval(() => setRecordDuration(p => p + 1), 1000);
+    } catch {
+      alert("Autorisez l'accès au microphone pour enregistrer un message vocal.");
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    setIsRecording(false);
+    setRecordDuration(0);
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.ondataavailable = null;
+      mediaRecorderRef.current.onstop = null;
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream?.getTracks().forEach(t => t.stop());
+    }
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    audioChunksRef.current = [];
+    setIsRecording(false);
+    setRecordDuration(0);
+  };
+
+  const uploadVoiceMessage = async (blob: Blob) => {
+    setUploading(true);
+    const fileName = `voice-${Date.now()}.webm`;
+    const { error } = await supabase.storage.from('community-media').upload(fileName, blob, { contentType: 'audio/webm' });
+    if (error) { toast({ title: 'Erreur', description: error.message, variant: 'destructive' }); setUploading(false); return; }
+    const { data: urlData } = supabase.storage.from('community-media').getPublicUrl(fileName);
+    await supabase.from('community_messages').insert({
+      auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
+      contenu: '🎤 Message vocal', type: 'voice', image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
+    });
+    setUploading(false);
   };
 
   const sendMessage = async () => {
@@ -467,7 +534,12 @@ export function CommunityPage() {
                             <Reply size={14} /> Répondre
                           </button>
                           {/* Copy */}
-                          {msg.type === 'text' && (
+                          {msg.type === 'voice' && msg.image_url && !isDeleted && (
+                        <div className={`px-3 py-2 ${isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary'} rounded-2xl`}>
+                          <audio controls src={msg.image_url} className="max-w-[220px] h-8" preload="metadata" style={{ accentColor: '#6C63FF' }} />
+                        </div>
+                      )}
+                      {msg.type === 'text' && (
                             <button onClick={() => copyMessage(msg)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
                               <Copy size={14} /> Copier
                             </button>
@@ -515,7 +587,7 @@ export function CommunityPage() {
                       )}
                       {msg.type === 'video' && msg.image_url && (
                         <div className="relative group">
-                          <video src={msg.image_url} controls className="max-w-full max-h-72 rounded-2xl" preload="metadata" />
+                          <video src={msg.image_url} controls playsInline className="max-w-full max-h-72 rounded-2xl" preload="auto" />
                           <button onClick={() => handleDownload(msg.image_url!, 'video')} className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background/90" title="Télécharger">
                             <Download size={16} />
                           </button>
@@ -644,27 +716,63 @@ export function CommunityPage() {
       )}
 
       {/* Input */}
-       <div className="sticky bottom-0 flex items-center gap-2 py-2 border-t border-border bg-background z-10 md:pb-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))]" style={{ flexShrink: 0 }}>
+      <div className="sticky bottom-0 flex flex-col border-t border-border bg-background z-10 md:pb-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))]" style={{ flexShrink: 0 }}>
         <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
-        <div className="flex items-center shrink-0">
-          <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-            <Smile size={20} />
-          </button>
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
-            <Paperclip size={20} />
-          </button>
+
+        {/* Recording indicator */}
+        {isRecording && (
+          <div className="flex items-center gap-3 px-4 py-2 bg-red-500/10 border-b border-red-500/20 animate-fade-in">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+            </span>
+            <span className="text-sm text-red-400 font-medium flex-1">Enregistrement… {formatDuration(recordDuration)}</span>
+            <button onClick={cancelRecording} className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+              <X size={16} />
+            </button>
+            <button onClick={stopRecording} className="px-3 py-1.5 rounded-full bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition-colors">
+              Envoyer
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-end gap-2 py-2 px-1">
+          <div className="flex items-center shrink-0">
+            <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              <Smile size={20} />
+            </button>
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
+              <Paperclip size={20} />
+            </button>
+          </div>
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleInputKeyDown}
+            rows={1}
+            placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
+            className="flex-1 min-w-0 px-4 py-2 rounded-2xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm resize-none overflow-hidden"
+            style={{ maxHeight: '120px' }}
+            onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }}
+          />
+          {input.trim() ? (
+            <button onClick={sendMessage} className="p-2 rounded-full text-primary hover:bg-secondary transition-colors shrink-0">
+              <Send size={20} />
+            </button>
+          ) : (
+            <button
+              onTouchStart={!isMobile ? undefined : startRecording}
+              onTouchEnd={!isMobile ? undefined : stopRecording}
+              onClick={!isMobile ? (isRecording ? stopRecording : startRecording) : undefined}
+              disabled={uploading}
+              className={`p-2 rounded-full transition-colors shrink-0 ${isRecording ? 'text-red-500 bg-red-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'} disabled:opacity-50`}
+              title={isRecording ? 'Arrêter' : 'Message vocal'}
+            >
+              {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+            </button>
+          )}
         </div>
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={handleInputChange}
-          onKeyDown={handleInputKeyDown}
-          placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
-          className="flex-1 min-w-0 px-4 py-2 rounded-full bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm"
-        />
-        <button onClick={sendMessage} disabled={!input.trim()} className="p-2 rounded-full text-primary hover:bg-secondary transition-colors disabled:opacity-30 shrink-0">
-          <Send size={20} />
-        </button>
       </div>
 
       {/* Fullscreen preview */}

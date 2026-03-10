@@ -484,20 +484,25 @@ export function CommunityPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col animate-fade-in h-full overflow-x-hidden" style={{ paddingLeft: 0, paddingRight: 0 }}>
-      <div className="flex items-center justify-end mb-3 px-3 pt-3 shrink-0">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/60 border border-border overflow-hidden max-w-full">
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden', maxWidth: '100%' }}>
+      {/* Barre "en ligne" */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 12px 6px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '999px', background: 'var(--secondary)', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+          <span style={{ position: 'relative', display: 'flex', width: '10px', height: '10px', flexShrink: 0 }}>
+            <span className="animate-ping" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#4ade80', opacity: 0.75 }} />
+            <span style={{ position: 'relative', borderRadius: '50%', width: '10px', height: '10px', background: '#22c55e', display: 'inline-flex' }} />
           </span>
-          <Users size={13} className="text-muted-foreground shrink-0" />
-          <span className="text-sm font-medium text-foreground whitespace-nowrap">{onlineCount} en ligne</span>
+          <Users size={13} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />
+          <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--foreground)' }}>{onlineCount} en ligne</span>
         </div>
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 touch-pan-y overscroll-contain" style={{ paddingLeft: '10px', paddingRight: '10px', paddingBottom: '4px' }}>
+      <div
+        ref={scrollRef}
+        className="touch-pan-y overscroll-contain"
+        style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 10px 8px' }}
+      >
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <p className="text-lg">Aucun message pour le moment</p>
@@ -510,8 +515,14 @@ export function CommunityPage() {
           const replyMsg = getReplyMsg(msg.reply_to);
 
           return (
-            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in group/msg`} style={{ minWidth: 0 }}>
-              <div className={`${isMe ? 'order-2' : ''} relative`} style={{ maxWidth: 'min(78%, calc(100vw - 56px))', minWidth: 0 }}>
+            <div
+              key={msg.id}
+              className="animate-fade-in group/msg"
+              style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', width: '100%', minWidth: 0, boxSizing: 'border-box' }}
+            >
+              <div
+                style={{ maxWidth: 'calc(100% - 44px)', minWidth: 0, position: 'relative' }}
+              >
                 {/* Author info */}
                 <div className="flex items-center gap-2 mb-1">
                   {!isMe && (
@@ -745,17 +756,17 @@ export function CommunityPage() {
       )}
 
       {/* Input */}
-      <div
-        className="flex flex-col border-t border-border bg-background z-10"
-        style={{
-          flexShrink: 0,
-          paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
-          paddingLeft: 'max(6px, env(safe-area-inset-left))',
-          paddingRight: 'max(6px, env(safe-area-inset-right))',
-          width: '100%',
-          boxSizing: 'border-box',
-        }}
-      >
+      <div style={{
+        flexShrink: 0,
+        width: '100%',
+        boxSizing: 'border-box',
+        borderTop: '1px solid var(--border)',
+        background: 'var(--background)',
+        zIndex: 10,
+        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(4px, env(safe-area-inset-left))',
+        paddingRight: 'max(4px, env(safe-area-inset-right))',
+      }}>
         <input ref={fileInputRef} type="file" accept="*/*" onChange={handleFileUpload} className="hidden" />
 
         {/* Recording indicator */}
@@ -775,8 +786,9 @@ export function CommunityPage() {
           </div>
         )}
 
-        <div className="flex items-end gap-1 py-2 w-full" style={{ minWidth: 0 }}>
-          <div className="flex items-center shrink-0">
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', padding: '8px 0', width: '100%', boxSizing: 'border-box' }}>
+          {/* Emoji + attach */}
+          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             <button onClick={() => setShowEmoji(!showEmoji)} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
               <Smile size={20} />
             </button>
@@ -784,6 +796,7 @@ export function CommunityPage() {
               <Paperclip size={20} />
             </button>
           </div>
+          {/* Textarea */}
           <textarea
             ref={inputRef}
             value={input}
@@ -791,20 +804,24 @@ export function CommunityPage() {
             onKeyDown={handleInputKeyDown}
             rows={1}
             placeholder={replyTo ? `Répondre à ${replyTo.auteur}...` : 'Tapez @ pour mentionner'}
-            className="flex-1 px-3 py-2 rounded-2xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm resize-none overflow-hidden"
-            style={{ maxHeight: '120px', minWidth: 0, width: 0 }}
+            className="rounded-2xl bg-secondary border-none focus:ring-1 focus:ring-primary outline-none text-foreground text-sm resize-none overflow-hidden"
+            style={{ flex: 1, minWidth: 0, width: 0, maxHeight: '120px', padding: '8px 12px', boxSizing: 'border-box' }}
             onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }}
           />
+          {/* Send / Mic */}
           {input.trim() ? (
-            <button onClick={sendMessage} className="p-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0">
+            <button
+              onClick={sendMessage}
+              style={{ flexShrink: 0, padding: '10px', borderRadius: '50%', background: 'var(--primary)', color: 'var(--primary-foreground)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
               <Send size={18} />
             </button>
           ) : (
             <button
               onClick={startRecording}
               disabled={uploading}
-              className={`p-2.5 rounded-full transition-colors shrink-0 ${isRecording ? 'text-red-500 bg-red-500/10 animate-pulse' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'} disabled:opacity-50`}
-              title={isRecording ? 'Appuyez pour envoyer' : 'Message vocal — appuyez pour démarrer'}
+              style={{ flexShrink: 0, padding: '10px', borderRadius: '50%', border: 'none', cursor: uploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: uploading ? 0.5 : 1, background: isRecording ? 'rgba(239,68,68,0.1)' : 'transparent', color: isRecording ? '#ef4444' : 'var(--muted-foreground)' }}
+              title={isRecording ? 'Appuyez pour envoyer' : 'Message vocal'}
             >
               {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
             </button>

@@ -2,9 +2,11 @@ import { useAutoUpdate } from '@/hooks/useAutoUpdate';
 import { RefreshCw, X, ArrowRight, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useProfileOpen } from '@/contexts/ProfileOpenContext';
 
 export function UpdateBanner() {
   const { updateReady, applyUpdate } = useAutoUpdate();
+  const { isProfileOpen } = useProfileOpen();
   const [dismissed, setDismissed] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
@@ -21,7 +23,8 @@ export function UpdateBanner() {
     }
   }, [updateReady]);
 
-  if (!updateReady || dismissed) return null;
+  // Ne pas afficher si pas de mise à jour, déjà fermé, ou profil ouvert
+  if (!updateReady || dismissed || isProfileOpen) return null;
 
   // createPortal → rendu directement dans document.body,
   // hors de tout Sheet/Dialog Radix qui bloquerait les événements

@@ -197,44 +197,46 @@ export function VideoPage() {
         const video = videos.find(v => v.id === selectedVideo);
         if (!video) return null;
         return (
-          <div className="fixed inset-0 z-50 flex flex-col animate-fade-in" style={{ animationDuration: '0.2s' }}>
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-background/95 backdrop-blur-md" onClick={() => setSelectedVideo(null)} />
-
+          <div
+            className="fixed inset-0 z-50 flex flex-col animate-fade-in"
+            style={{ animationDuration: '0.2s', backgroundColor: 'rgba(0,0,0,0.97)' }}
+          >
             {/* Top bar */}
-            <div className="relative z-10 flex items-center justify-between px-4 md:px-6 py-3 border-b border-border/50">
+            <div
+              className="relative z-10 flex items-center justify-between px-4 md:px-6 py-3 flex-shrink-0"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}
+            >
               <div className="flex items-center gap-3 min-w-0">
                 <button
                   onClick={() => setSelectedVideo(null)}
-                  className="p-2 rounded-lg hover:bg-secondary transition-colors flex-shrink-0"
+                  className="p-2 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
                 >
-                  <X size={20} className="text-muted-foreground" />
+                  <X size={20} className="text-white/80" />
                 </button>
                 <div className="min-w-0">
-                  <h2 className="font-heading font-semibold text-sm md:text-base truncate">{video.titre}</h2>
+                  <h2 className="font-heading font-semibold text-sm md:text-base truncate text-white">{video.titre}</h2>
                   <div className="flex items-center gap-2 mt-0.5">
                     {video.matiere && (
-                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/30 text-primary">
                         <BookOpen size={10} />
                         {video.matiere}
                       </span>
                     )}
-                    <span className="text-xs text-muted-foreground">{video.date}</span>
+                    <span className="text-xs text-white/50">{video.date}</span>
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Navigation */}
                 <div className="hidden sm:flex items-center gap-1 mr-2">
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-white/50">
                     {currentVideoIndex + 1} / {filteredVideos.length}
                   </span>
                 </div>
                 <button
                   onClick={() => navigateVideo('prev')}
                   disabled={!hasPrev}
-                  className="p-2 rounded-lg hover:bg-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-white"
                   title="Vidéo précédente (←)"
                 >
                   <ChevronLeft size={18} />
@@ -242,14 +244,14 @@ export function VideoPage() {
                 <button
                   onClick={() => navigateVideo('next')}
                   disabled={!hasNext}
-                  className="p-2 rounded-lg hover:bg-secondary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-white"
                   title="Vidéo suivante (→)"
                 >
                   <ChevronRight size={18} />
                 </button>
                 <button
                   onClick={() => setIsTheaterMode(p => !p)}
-                  className="p-2 rounded-lg hover:bg-secondary transition-colors hidden md:flex"
+                  className="p-2 rounded-lg hover:bg-white/10 transition-colors hidden md:flex text-white"
                   title="Mode cinéma (F)"
                 >
                   {isTheaterMode ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
@@ -257,54 +259,87 @@ export function VideoPage() {
               </div>
             </div>
 
-            {/* Player area */}
-            <div className="relative z-10 flex-1 flex flex-col items-center p-2 md:p-4 overflow-y-auto">
-              <div className="flex-1 flex flex-col justify-center w-full">
-              <div className={`w-full mx-auto transition-all duration-300 ${isTheaterMode ? 'max-w-full' : 'max-w-5xl'}`}>
-                <div className="aspect-video rounded-xl overflow-hidden bg-black shadow-2xl shadow-primary/10 border border-border/30">
+            {/* Player area — perfectly centered on all devices */}
+            <div
+              className="relative z-10 flex-1 flex items-center justify-center"
+              style={{ padding: '12px' }}
+            >
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: isTheaterMode ? '100%' : '900px',
+                  position: 'relative',
+                  paddingTop: isTheaterMode ? '56.25%' : undefined,
+                }}
+              >
+                {isTheaterMode ? (
                   <iframe
-                    src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`}
+                    key={video.youtubeId + '-theater'}
+                    src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&fs=1`}
                     title={video.titre}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                     allowFullScreen
-                    className="w-full h-full"
-                    style={{ border: 'none' }}
+                    style={{
+                      position: 'absolute',
+                      top: 0, left: 0,
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                      borderRadius: '12px',
+                      backgroundColor: '#000',
+                    }}
                   />
-                </div>
-
-                {/* Video info below player */}
-                {video.description && (
-                  <div className="mt-4 p-4 rounded-xl bg-secondary/50 border border-border/30">
-                    <p className="text-sm text-muted-foreground leading-relaxed">{video.description}</p>
-                  </div>
-                )}
-
-                {/* Suggested next videos */}
-                {hasNext && (
-                  <div className="mt-4">
-                    <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wider">Vidéo suivante</p>
-                    <button
-                      onClick={() => navigateVideo('next')}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-secondary/50 border border-border/30 hover:border-primary/30 hover:bg-secondary transition-all group text-left"
-                    >
-                      <img
-                        src={`https://img.youtube.com/vi/${filteredVideos[currentVideoIndex + 1].youtubeId}/mqdefault.jpg`}
-                        alt=""
-                        className="w-28 md:w-36 aspect-video object-cover rounded-lg flex-shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <h4 className="text-sm font-medium truncate group-hover:text-primary transition-colors">
-                          {filteredVideos[currentVideoIndex + 1].titre}
-                        </h4>
-                        {filteredVideos[currentVideoIndex + 1].matiere && (
-                          <span className="text-xs text-muted-foreground">{filteredVideos[currentVideoIndex + 1].matiere}</span>
-                        )}
-                      </div>
-                      <ChevronRight size={18} className="text-muted-foreground flex-shrink-0 ml-auto" />
-                    </button>
+                ) : (
+                  <div style={{ position: 'relative', paddingTop: '56.25%' }}>
+                    <iframe
+                      key={video.youtubeId}
+                      src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&fs=1`}
+                      title={video.titre}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                      allowFullScreen
+                      style={{
+                        position: 'absolute',
+                        top: 0, left: 0,
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                        borderRadius: '12px',
+                        backgroundColor: '#000',
+                      }}
+                    />
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Bottom info bar */}
+            <div
+              className="relative z-10 flex-shrink-0 px-4 pb-4 pt-2"
+              style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+                {video.description && (
+                  <p className="text-xs text-white/50 mb-2 line-clamp-1">{video.description}</p>
+                )}
+                {hasNext && (
+                  <button
+                    onClick={() => navigateVideo('next')}
+                    className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 transition-all group text-left"
+                  >
+                    <img
+                      src={`https://img.youtube.com/vi/${filteredVideos[currentVideoIndex + 1].youtubeId}/mqdefault.jpg`}
+                      alt=""
+                      className="w-16 aspect-video object-cover rounded-lg flex-shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-white/40 mb-0.5">Vidéo suivante</p>
+                      <h4 className="text-sm font-medium truncate text-white/80 group-hover:text-white transition-colors">
+                        {filteredVideos[currentVideoIndex + 1].titre}
+                      </h4>
+                    </div>
+                    <ChevronRight size={16} className="text-white/40 flex-shrink-0" />
+                  </button>
+                )}
               </div>
             </div>
           </div>

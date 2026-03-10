@@ -157,8 +157,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {darkMode ? <Sun size={20} className="shrink-0" /> : <Moon size={20} className="shrink-0" />}
             {sidebarOpen && <span>{darkMode ? 'Mode clair' : 'Mode sombre'}</span>}
           </button>
-          <button onClick={() => setShowAdmin(true)} title="Administration" className={`nav-item w-full opacity-60 hover:opacity-100 ${!sidebarOpen ? 'justify-center' : ''}`}>
-            <Settings size={20} className="shrink-0" />{sidebarOpen && <span>Admin</span>}
+          <button onClick={() => setShowAdmin(true)} title="Administration" className={`nav-item w-full ${!sidebarOpen ? 'justify-center' : ''} ${isAdmin ? 'text-primary opacity-100' : 'opacity-60 hover:opacity-100'}`}>
+            <Settings size={20} className="shrink-0" />{sidebarOpen && <span>⚙️ Admin{isAdmin ? ' ✓' : ''}</span>}
           </button>
           {canInstall && (
             <button onClick={() => install()} title="Installer" className={`nav-item w-full text-primary ${!sidebarOpen ? 'justify-center' : ''}`}>
@@ -189,9 +189,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Users size={12} /> {onlineCount}
             </span>
             {isAdmin && (
-              <span className="text-xs px-2.5 py-1 rounded-full bg-primary/20 text-primary font-medium flex items-center gap-1">
-                <Lock size={11} /> Admin
-              </span>
+              <button
+                onClick={() => setShowAdmin(true)}
+                title="Ouvrir le panneau Admin"
+                className="text-xs px-2.5 py-1 rounded-full bg-primary/20 text-primary font-medium flex items-center gap-1 hover:bg-primary/30 transition-colors cursor-pointer"
+              >
+                ⚙️ <Lock size={11} /> Admin
+              </button>
             )}
             <ProfileMenu />
           </div>
@@ -273,8 +277,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <button onClick={toggleDarkMode} className="nav-item w-full">
                 {darkMode ? <Sun size={20} /> : <Moon size={20} />}<span>{darkMode ? 'Mode clair' : 'Mode sombre'}</span>
               </button>
-              <button onClick={() => { setShowAdmin(true); setMobileMenuOpen(false); }} className="nav-item w-full">
-                <Settings size={20} /><span>Admin</span>
+              <button onClick={() => { setShowAdmin(true); setMobileMenuOpen(false); }} className={`nav-item w-full ${isAdmin ? 'text-primary font-semibold' : ''}`}>
+                <Settings size={20} /><span>⚙️ Admin{isAdmin ? ' ✓' : ''}</span>
               </button>
               {canInstall && (
                 <button onClick={() => { install(); setMobileMenuOpen(false); }} className="nav-item w-full text-primary font-medium">

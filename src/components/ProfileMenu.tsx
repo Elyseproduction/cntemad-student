@@ -176,81 +176,81 @@ export function ProfileMenu() {
 
         <div className="flex-1 overflow-y-auto">
 
-          {/* ── Photo-sheet : panneau de sélection INTÉGRÉ (pas de portal séparé) ── */}
+          {/* ── Photo-sheet intégré ── */}
           {showPhotoSheet && (
             <div
               className="absolute inset-0 z-[10] flex flex-col justify-end"
               style={{ background: 'rgba(0,0,0,0.55)' }}
               onClick={() => setShowPhotoSheet(false)}
             >
+              <style>{`@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
               <div
-                className="bg-card rounded-t-3xl border-t border-border p-4 pb-8 space-y-2"
-                style={{ animation: 'slideUp .2s ease' }}
+                className="bg-card rounded-t-3xl border-t border-border flex flex-col"
+                style={{
+                  animation: 'slideUp .2s ease',
+                  paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
+                  maxHeight: '80%',
+                }}
                 onClick={e => e.stopPropagation()}
               >
-                <style>{`@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
-                <div className="w-10 h-1 rounded-full bg-muted mx-auto mb-3" />
-                <p className="text-center text-sm font-semibold mb-3">Photo de profil</p>
+                {/* Handle + titre */}
+                <div className="px-4 pt-4 pb-3 shrink-0">
+                  <div className="w-10 h-1 rounded-full bg-muted mx-auto mb-4" />
+                  <p className="text-center text-sm font-semibold text-foreground">Photo de profil</p>
+                </div>
 
-                {/* ── PRENDRE UNE PHOTO : label wrapping input capture ── */}
-                <label className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-secondary hover:bg-secondary/80 transition-colors cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Camera size={20} className="text-primary" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <p className="text-sm font-medium text-foreground">Prendre une photo</p>
-                    <p className="text-xs text-muted-foreground">Utiliser l'appareil photo</p>
-                  </div>
-                  <ChevronRight size={16} className="text-muted-foreground" />
-                </label>
+                {/* Options scrollables si besoin */}
+                <div className="px-4 space-y-2 overflow-y-auto flex-1">
 
-                {/* ── GALERIE : label wrapping input sans capture ── */}
-                <label className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-secondary hover:bg-secondary/80 transition-colors cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <ImagePlus size={20} className="text-primary" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <p className="text-sm font-medium text-foreground">Choisir depuis la galerie</p>
-                    <p className="text-xs text-muted-foreground">Toutes vos photos et images</p>
-                  </div>
-                  <ChevronRight size={16} className="text-muted-foreground" />
-                </label>
-
-                {/* ── SUPPRIMER ── */}
-                {hasAvatar && (
-                  <button
-                    onClick={handleRemoveAvatar}
-                    className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-destructive/10 hover:bg-destructive/20 transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                      <Trash2 size={20} className="text-destructive" />
+                  {/* Prendre une photo */}
+                  <label className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-secondary active:bg-secondary/60 transition-colors cursor-pointer select-none">
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Camera size={20} className="text-primary" />
                     </div>
                     <div className="text-left flex-1">
-                      <p className="text-sm font-medium text-destructive">Supprimer la photo</p>
-                      <p className="text-xs text-muted-foreground">Revenir à l'avatar par défaut</p>
+                      <p className="text-sm font-medium text-foreground">Prendre une photo</p>
+                      <p className="text-xs text-muted-foreground">Utiliser l'appareil photo</p>
                     </div>
-                  </button>
-                )}
+                    <ChevronRight size={16} className="text-muted-foreground shrink-0" />
+                  </label>
 
-                <button
-                  onClick={() => setShowPhotoSheet(false)}
-                  className="w-full py-3 rounded-2xl bg-muted text-foreground text-sm font-medium hover:bg-muted/80 transition-colors mt-1"
-                >
-                  Annuler
-                </button>
+                  {/* Galerie */}
+                  <label className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-secondary active:bg-secondary/60 transition-colors cursor-pointer select-none">
+                    <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <ImagePlus size={20} className="text-primary" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="text-sm font-medium text-foreground">Choisir depuis la galerie</p>
+                      <p className="text-xs text-muted-foreground">Toutes vos photos et images</p>
+                    </div>
+                    <ChevronRight size={16} className="text-muted-foreground shrink-0" />
+                  </label>
+
+                  {/* Supprimer */}
+                  {hasAvatar && (
+                    <button onClick={handleRemoveAvatar} className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-destructive/10 active:bg-destructive/25 transition-colors">
+                      <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                        <Trash2 size={20} className="text-destructive" />
+                      </div>
+                      <div className="text-left flex-1">
+                        <p className="text-sm font-medium text-destructive">Supprimer la photo</p>
+                        <p className="text-xs text-muted-foreground">Revenir à l'initiale du nom</p>
+                      </div>
+                    </button>
+                  )}
+                </div>
+
+                {/* Annuler — toujours visible en bas, séparé */}
+                <div className="px-4 pt-3 shrink-0">
+                  <button
+                    onClick={() => setShowPhotoSheet(false)}
+                    className="w-full py-3.5 rounded-2xl bg-muted text-foreground text-sm font-semibold active:bg-muted/60 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                </div>
               </div>
             </div>
           )}

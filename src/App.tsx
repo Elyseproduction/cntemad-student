@@ -8,6 +8,7 @@ import { CoursesPage } from "@/pages/CoursesPage";
 import { ExercisesPage } from "@/pages/ExercisesPage";
 import { CommunityPage } from "@/pages/CommunityPage";
 import { VideoPage } from "@/pages/VideoPage";
+import { GuidePage } from "@/pages/GuidePage";
 import { useAuth } from "@/hooks/useAuth";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { ProfileSetup } from "@/components/ProfileSetup";

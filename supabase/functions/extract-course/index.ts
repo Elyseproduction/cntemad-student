@@ -13,7 +13,7 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string):
       type: "function",
       function: {
         name: "structure_course",
-        description: "Structure a document into a pedagogical chapter with sections, key points, and revision tips.",
+        description: "Structure a document into a comprehensive pedagogical chapter with ALL content preserved, enriched with additional explanations and examples.",
         parameters: {
           type: "object",
           properties: {
@@ -48,6 +48,18 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string):
             },
             points_cles: { type: "array", items: { type: "string" } },
             conseil_revision: { type: "string" },
+            contenu_ajoute: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  titre: { type: "string" },
+                  description: { type: "string" },
+                },
+                required: ["titre", "description"],
+                additionalProperties: false,
+              },
+            },
           },
           required: ["titre", "difficulte", "resume_intro", "sections", "points_cles", "conseil_revision"],
           additionalProperties: false,
@@ -63,14 +75,14 @@ async function callAI(apiKey: string, systemPrompt: string, userPrompt: string):
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       tools,
       tool_choice: { type: "function", function: { name: "structure_course" } },
-      max_tokens: 12000,
+      max_tokens: 30000,
     }),
   });
 
@@ -107,33 +119,51 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const systemPrompt = `Tu es un expert en pédagogie universitaire informatique. Tu dois analyser un document de cours et le transformer en un chapitre structuré et facile à apprendre.
+    const systemPrompt = `Tu es un expert en pédagogie universitaire informatique. Tu dois analyser un document de cours PAGE PAR PAGE et le transformer en un chapitre COMPLET, EXHAUSTIF et détaillé.
+
+⚠️ RÈGLE ABSOLUE : NE RÉSUME PAS ! Tu dois TOUT inclure :
+- CHAQUE définition, CHAQUE formule, CHAQUE exemple du document original
+- CHAQUE paragraphe doit être retranscrit intégralement avec les détails
+- Si le document fait 10 pages, le résultat doit contenir TOUT le contenu de ces 10 pages
+- Analyse le document page par page, section par section, ne saute RIEN
+- Les cours sont destinés à des étudiants universitaires qui ont besoin du contenu COMPLET pour réviser
+
+📝 ENRICHISSEMENT OBLIGATOIRE :
+- Si tu détectes des concepts qui manquent d'explication, AJOUTE des explications supplémentaires
+- Si un exemple est absent pour illustrer un concept, INVENTE un exemple pertinent
+- Si une définition est incomplète, COMPLÈTE-la avec les informations manquantes
+- Ajoute des analogies pour rendre les concepts complexes plus accessibles
+- Ajoute des "attention" pour les erreurs fréquentes des étudiants
+- Ajoute des "retenir" pour les points essentiels à mémoriser
+- Signale dans contenu_ajoute tout ce que tu as rajouté qui n'était pas dans le document original
 
 CONTRAINTES FORMAT MOBILE :
 - L'app est sur téléphone (~360px). Lignes max 60 caractères.
 - Pour code/tableau/schema : lignes max 50 caractères, découpe si nécessaire.
 - Schémas ASCII : étroits et verticaux.
 - Phrases courtes, paragraphes aérés.
-- Découpe les contenus longs en plusieurs sections.
+- Découpe les contenus longs en PLUSIEURS sections pour une lecture progressive.
 
 RÈGLES DE STRUCTURATION :
 - "h1" pour titres principaux, "h2" sous-titres, "h3" sous-sous-titres
-- "definition" pour définitions importantes 📌
-- "retenir" pour points essentiels 💡
-- "attention" pour pièges courants ⚠️
-- "code" pour code/algorithmes (lignes courtes)
-- "tableau" pour données tabulaires — format compact
+- "definition" pour CHAQUE définition importante 📌
+- "retenir" pour points essentiels 💡 (en ajouter même si absents du document)
+- "attention" pour pièges courants ⚠️ (en ajouter même si absents du document)
+- "code" pour code/algorithmes (lignes courtes, TOUT le code du document)
+- "tableau" pour données tabulaires — format compact (TOUS les tableaux)
 - "schema" pour diagrammes — format vertical étroit
 - Mets en valeur les mots-clés dans mots_cles
-- Reformule et améliore pour plus de clarté
-- Ajoute des exemples et analogies`;
+- NE REFORMULE PAS les définitions originales, garde-les telles quelles et ajoute des clarifications en plus si nécessaire
+- Le contenu doit être COMPLET, pas un résumé`;
 
-    const userPrompt = `Analyse et structure ce document de cours "${fileName || 'document'}" pour la matière "${subjectName}".
+    const userPrompt = `Analyse et structure INTÉGRALEMENT ce document de cours "${fileName || 'document'}" pour la matière "${subjectName}".
 
-Contenu du document :
-${textContent.substring(0, 30000)}
+IMPORTANT : Analyse CHAQUE PAGE du document. Ne résume pas. Retranscris TOUT le contenu et enrichis-le avec des explications supplémentaires, des exemples et des points d'attention.
 
-Transforme ce contenu en un chapitre structuré, pédagogique et facile à apprendre.`;
+Contenu du document (à analyser intégralement, page par page) :
+${textContent.substring(0, 50000)}
+
+Transforme ce contenu en un chapitre COMPLET, détaillé et pédagogique. Le résultat doit contenir PLUS de contenu que le document original, pas moins.`;
 
     let lastError: any = null;
 

@@ -315,8 +315,8 @@ export function CommunityPage() {
     await supabase.from('community_messages').insert({
       auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
       contenu: '🎤 Message vocal', type: 'voice', image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
-      channel_id: activeChannel,
-    });
+      channel_id: 'default',
+    } as any);
     setUploading(false);
   };
 
@@ -357,8 +357,8 @@ export function CommunityPage() {
         reactions: {},
         reply_to: replyId,
         user_id: user?.id,
-        channel_id: activeChannel,
-      });
+        ...(activeChannel !== 'default' ? { channel_id: activeChannel } : { channel_id: 'default' }),
+      } as any);
 
       if (error) {
         // Echec : retirer le message optimiste et restaurer le texte saisi
@@ -410,8 +410,8 @@ export function CommunityPage() {
       auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
       contenu: getFileLabel(file), type: fileType,
       image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
-      channel_id: activeChannel,
-    });
+      channel_id: 'default',
+    } as any);
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };

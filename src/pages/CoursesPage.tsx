@@ -229,7 +229,7 @@ function RenameSessionModal({ open, onClose, session, onRename }: {
 }
 
 // ── Import Course Modal ───────────────────────────────────────────────────────
-function ImportCourseModal({ open, onClose, subjectName, onImport }: { open: boolean; onClose: () => void; subjectName: string; onImport: (chapter: Chapter) => void }) {
+function ImportCourseModal({ open, onClose, subjectName, onImport, onVideosFound }: { open: boolean; onClose: () => void; subjectName: string; onImport: (chapter: Chapter) => void; onVideosFound?: (videos: any[]) => void }) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -257,13 +257,33 @@ function ImportCourseModal({ open, onClose, subjectName, onImport }: { open: boo
     try {
       const textContent = await extractTextFromFile(file);
       if (textContent.length < 50) { toast({ title: 'Contenu insuffisant', variant: 'destructive' }); setLoading(false); setStatus(''); return; }
-      setStatus("🤖 Analyse par l'IA en cours...");
+      setStatus("🤖 Analyse complète par l'IA (page par page)...");
       const { data, error } = await supabase.functions.invoke('extract-course', { body: { textContent, fileName: file.name, subjectName } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const chapter: Chapter = { id: Date.now().toString(), titre: data.titre || file.name.replace(/\.[^.]+$/, ''), difficulte: data.difficulte || 'Moyen', resume_intro: data.resume_intro || '', sections: data.sections || [], schemas_detectes: data.schemas_detectes || [], points_cles: data.points_cles || [], conseil_revision: data.conseil_revision || '', published: false };
       onImport(chapter);
-      toast({ title: '✅ Cours importé !', description: `"${chapter.titre}" a été créé. Vérifiez et publiez-le.` });
+      
+      // Show what AI added
+      if (data.contenu_ajoute && data.contenu_ajoute.length > 0) {
+        const added = data.contenu_ajoute.map((c: any) => c.titre).join(', ');
+        toast({ title: '✅ Cours importé avec enrichissements !', description: `"${chapter.titre}" créé. L'IA a ajouté : ${added}` });
+      } else {
+        toast({ title: '✅ Cours importé !', description: `"${chapter.titre}" a été créé. Vérifiez et publiez-le.` });
+      }
+
+      // Auto-search YouTube videos for this chapter
+      setStatus("🔍 Recherche de vidéos YouTube...");
+      try {
+        const { data: ytData } = await supabase.functions.invoke('search-youtube', { 
+          body: { chapterTitle: chapter.titre, subjectName } 
+        });
+        if (ytData?.videos?.length > 0 && onVideosFound) {
+          onVideosFound(ytData.videos);
+          toast({ title: '🎬 Vidéos trouvées !', description: `${ytData.videos.length} suggestion(s) de vidéos ajoutée(s) à la vidéothèque.` });
+        }
+      } catch { /* ignore video search errors */ }
+      
       onClose();
     } catch (err: any) {
       toast({ title: "Erreur d'importation", description: err.message || 'Une erreur est survenue.', variant: 'destructive' });

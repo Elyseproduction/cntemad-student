@@ -325,7 +325,7 @@ function ImportCourseModal({ open, onClose, subjectName, onImport, onVideosFound
 // ── Rename Session Modal ──────────────────────────────────────────────────────
 // ── Main CoursesPage ──────────────────────────────────────────────────────────
 export function CoursesPage() {
-  const { subjects, setSubjects, sessions, setSessions, isAdmin, setActiveTab } = useApp();
+  const { subjects, setSubjects, sessions, setSessions, isAdmin, setActiveTab, videos, setVideos } = useApp();
   const { toast } = useToast();
 
   // Navigation levels: null = sessions grid | string = selected session id

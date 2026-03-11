@@ -323,6 +323,7 @@ export function CommunityPage() {
   const sendMessage = async () => {
     if (!input.trim()) return;
     const text = input;
+    const tempId = `temp-${Date.now()}`;
     setInput('');
     setShowEmoji(false);
     setShowMentions(false);
@@ -331,8 +332,9 @@ export function CommunityPage() {
 
     notifyMentionedUsers(text);
 
+    // Message optimiste affiché immédiatement
     const optimisticMsg: Message = {
-      id: `temp-${Date.now()}`,
+      id: tempId,
       auteur: username,
       avatar: userAvatar || username[0].toUpperCase(),
       couleur: userColor,
@@ -341,20 +343,43 @@ export function CommunityPage() {
       created_at: new Date().toISOString(),
       reactions: {},
       reply_to: replyId,
+      channel_id: activeChannel,
     };
     setMessages(prev => [...prev, optimisticMsg]);
 
-    await supabase.from('community_messages').insert({
-      auteur: username,
-      avatar: userAvatar || username[0].toUpperCase(),
-      couleur: userColor,
-      contenu: text,
-      type: 'text',
-      reactions: {},
-      reply_to: replyId,
-      user_id: user?.id,
-      channel_id: activeChannel,
-    });
+    try {
+      const { error } = await supabase.from('community_messages').insert({
+        auteur: username,
+        avatar: userAvatar || username[0].toUpperCase(),
+        couleur: userColor,
+        contenu: text,
+        type: 'text',
+        reactions: {},
+        reply_to: replyId,
+        user_id: user?.id,
+        channel_id: activeChannel,
+      });
+
+      if (error) {
+        // Echec : retirer le message optimiste et restaurer le texte saisi
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        setInput(text);
+        toast({
+          title: '❌ Envoi échoué',
+          description: `Le message n'a pas pu être envoyé : ${error.message}`,
+          variant: 'destructive',
+        });
+      }
+    } catch (err: any) {
+      // Erreur réseau : retirer le message optimiste et restaurer
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setInput(text);
+      toast({
+        title: '❌ Erreur réseau',
+        description: 'Vérifiez votre connexion et réessayez.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const getFileType = (file: File): 'image' | 'video' | 'file' => {

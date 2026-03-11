@@ -591,7 +591,26 @@ export function CoursesPage() {
         </button>
 
         {showImportCourse && (
-          <ImportCourseModal open={showImportCourse} onClose={() => setShowImportCourse(false)} subjectName={currentSubject.nom} onImport={handleImportChapter} />
+          <ImportCourseModal 
+            open={showImportCourse} 
+            onClose={() => setShowImportCourse(false)} 
+            subjectName={currentSubject.nom} 
+            onImport={handleImportChapter}
+            onVideosFound={(ytVideos) => {
+              // Add YouTube video suggestions to the videothèque
+              const newVideos = ytVideos.map((v: any) => ({
+                id: v.id,
+                titre: v.titre,
+                description: v.description,
+                youtubeUrl: v.youtubeSearchUrl,
+                youtubeId: '',
+                matiere: v.matiere,
+                date: v.date,
+                videoType: 'youtube' as const,
+              }));
+              setVideos(prev => [...prev, ...newVideos]);
+            }}
+          />
         )}
       </div>
     );

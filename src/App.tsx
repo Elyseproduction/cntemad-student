@@ -8,6 +8,7 @@ import { CoursesPage } from "@/pages/CoursesPage";
 import { ExercisesPage } from "@/pages/ExercisesPage";
 import { CommunityPage } from "@/pages/CommunityPage";
 import { VideoPage } from "@/pages/VideoPage";
+import { GuidePage } from "@/pages/GuidePage";
 import { useAuth } from "@/hooks/useAuth";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { ProfileSetup } from "@/components/ProfileSetup";
@@ -53,7 +54,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function AppContent() {
-  const { activeTab } = useApp();
+  const { activeTab, setActiveTab } = useApp();
 
   return (
     <Layout>
@@ -61,6 +62,7 @@ function AppContent() {
       {activeTab === 'exercices' && <ExercisesPage />}
       {activeTab === 'communaute' && <CommunityPage />}
       {activeTab === 'videos' && <VideoPage />}
+      {activeTab === 'guide' && <GuidePage onBack={() => setActiveTab('cours')} />}
     </Layout>
   );
 }

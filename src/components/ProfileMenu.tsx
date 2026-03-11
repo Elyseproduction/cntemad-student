@@ -244,7 +244,7 @@ export function ProfileMenu() {
                   />
                 </div>
 
-                {/* Galerie — sans accept pour autoriser "Parcourir" sur Android */}
+                {/* Galerie — accept large pour Android compatibilité maximale */}
                 <div className="relative overflow-hidden rounded-2xl">
                   <div className="flex items-center gap-3 w-full px-4 py-3.5 bg-secondary select-none pointer-events-none">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -258,6 +258,7 @@ export function ProfileMenu() {
                   </div>
                   <input
                     type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/bmp,image/heic,image/heif,.png,.jpg,.jpeg,.gif,.webp,.bmp,.heic,.heif"
                     onChange={handleFileChange}
                     style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
                   />

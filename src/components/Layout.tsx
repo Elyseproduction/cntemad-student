@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import { BookOpen, Brain, MessageCircle, Video, Settings, Moon, Sun, Lock, Menu, X, Download, Users } from 'lucide-react';
+import { BookOpen, Brain, MessageCircle, Video, Settings, Moon, Sun, Lock, Menu, X, Download, Users, HelpCircle } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useApp } from '@/contexts/AppContext';
 import { AdminModal } from '@/components/AdminModal';
@@ -11,6 +11,7 @@ const tabs = [
   { id: 'exercices',  label: 'Exercices IA',  icon: Brain,         emoji: '🧠' },
   { id: 'communaute', label: 'Communauté',    icon: MessageCircle, emoji: '💬' },
   { id: 'videos',     label: 'Vidéothèque',   icon: Video,         emoji: '🎬' },
+  { id: 'guide',      label: 'Guide',         icon: HelpCircle,    emoji: '❓' },
 ];
 
 const NAV_H = 56; // px hauteur de la nav mobile

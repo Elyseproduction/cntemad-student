@@ -103,7 +103,7 @@ export function ProfileSetup({ userId, defaultName, defaultAvatar, onComplete }:
               <Camera size={14} />
             </div>
           </button>
-          <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/bmp,image/heic,image/heif,.png,.jpg,.jpeg,.gif,.webp,.bmp,.heic,.heif" onChange={handleFileChange} className="hidden" />
         </div>
 
         {/* Pseudo */}

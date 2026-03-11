@@ -54,7 +54,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function AppContent() {
-  const { activeTab } = useApp();
+  const { activeTab, setActiveTab } = useApp();
 
   return (
     <Layout>
@@ -62,6 +62,7 @@ function AppContent() {
       {activeTab === 'exercices' && <ExercisesPage />}
       {activeTab === 'communaute' && <CommunityPage />}
       {activeTab === 'videos' && <VideoPage />}
+      {activeTab === 'guide' && <GuidePage onBack={() => setActiveTab('cours')} />}
     </Layout>
   );
 }

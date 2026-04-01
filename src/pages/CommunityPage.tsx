@@ -411,6 +411,7 @@ export function CommunityPage() {
       auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
       contenu: getFileLabel(file), type: fileType,
       image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
+      channel_id: activeChannel,
     });
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';

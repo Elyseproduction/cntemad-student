@@ -94,11 +94,10 @@ export function CommunityPage() {
   useEffect(() => {
     fetchMessages();
     const msgChannel = supabase
-      .channel('community_messages_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, (payload) => {
+      .channel('community_messages_realtime_' + activeChannel)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages', filter: `channel_id=eq.${activeChannel}` }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new as any;
-          // Check if current user is mentioned
           if (newMsg.auteur !== username && newMsg.contenu?.includes(`@${username}`)) {
             toast({ title: `💬 ${newMsg.auteur} vous a mentionné`, description: newMsg.contenu.slice(0, 80) });
           }
@@ -118,14 +117,13 @@ export function CommunityPage() {
       })
       .subscribe();
 
-    // Polling de secours toutes les 10s (le realtime gère l'instantané)
     const pollInterval = setInterval(() => { fetchMessages(); }, 10000);
 
     return () => {
       supabase.removeChannel(msgChannel);
       clearInterval(pollInterval);
     };
-  }, [fetchMessages]);
+  }, [fetchMessages, activeChannel]);
 
   const prevMsgCount = useRef(0);
   const initialScrollDone = useRef(false);

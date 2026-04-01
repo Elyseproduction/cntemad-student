@@ -608,7 +608,7 @@ export function CommunityPage() {
         style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 10px 8px' }}
       >
 
-        {messages.filter(m => (m.channel_id || 'default') === activeChannel).length === 0 && !loading && (
+        {messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
             {(() => { const s = sessions.find(x => x.id === activeChannel); return s ? <span className="text-4xl mb-3">{s.icone}</span> : null; })()}
             <p className="text-base font-medium text-foreground">{sessions.find(x => x.id === activeChannel)?.nom || 'Salon'}</p>

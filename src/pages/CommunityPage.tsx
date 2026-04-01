@@ -316,6 +316,7 @@ export function CommunityPage() {
     await supabase.from('community_messages').insert({
       auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
       contenu: '🎤 Message vocal', type: 'voice', image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
+      channel_id: activeChannel,
     });
     setUploading(false);
   };

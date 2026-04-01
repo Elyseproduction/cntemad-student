@@ -36,6 +36,7 @@ export type Database = {
         Row: {
           auteur: string
           avatar: string
+          channel_id: string
           contenu: string
           couleur: string
           created_at: string
@@ -51,6 +52,7 @@ export type Database = {
         Insert: {
           auteur: string
           avatar: string
+          channel_id?: string
           contenu: string
           couleur: string
           created_at?: string
@@ -66,6 +68,7 @@ export type Database = {
         Update: {
           auteur?: string
           avatar?: string
+          channel_id?: string
           contenu?: string
           couleur?: string
           created_at?: string

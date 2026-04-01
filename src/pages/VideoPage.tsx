@@ -629,6 +629,15 @@ export function VideoPage() {
                   <button onClick={() => setIsTheaterMode(p => !p)} className="p-2 rounded-lg hover:bg-white/10 transition-colors hidden md:flex text-white" title="Mode cinéma (F)">
                     {isTheaterMode ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                   </button>
+                  {/* Download button */}
+                  <button
+                    onClick={() => handleDownloadVideo(video)}
+                    disabled={downloading === video.id}
+                    className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white"
+                    title={video.videoType === 'local' ? `Télécharger${videoFileSizes[video.id] ? ` (${formatFileSize(videoFileSizes[video.id])})` : ''}` : 'Ouvrir sur YouTube'}
+                  >
+                    {downloading === video.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                  </button>
                   {/* Fullscreen landscape button */}
                   <button onClick={toggleFullscreen} className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white" title="Plein écran paysage">
                     <Maximize2 size={18} />

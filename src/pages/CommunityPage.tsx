@@ -69,6 +69,7 @@ export function CommunityPage() {
     const { data, error } = await supabase
       .from('community_messages')
       .select('*')
+      .eq('channel_id', activeChannel)
       .order('created_at', { ascending: true });
     if (!error && data) {
       setMessages(data.map(m => ({
@@ -77,7 +78,7 @@ export function CommunityPage() {
       })));
     }
     setLoading(false);
-  }, []);
+  }, [activeChannel]);
 
    // Fetch all registered users for mentions
    useEffect(() => {

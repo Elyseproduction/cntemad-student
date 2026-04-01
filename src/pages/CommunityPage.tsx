@@ -69,6 +69,7 @@ export function CommunityPage() {
     const { data, error } = await supabase
       .from('community_messages')
       .select('*')
+      .eq('channel_id', activeChannel)
       .order('created_at', { ascending: true });
     if (!error && data) {
       setMessages(data.map(m => ({
@@ -77,7 +78,7 @@ export function CommunityPage() {
       })));
     }
     setLoading(false);
-  }, []);
+  }, [activeChannel]);
 
    // Fetch all registered users for mentions
    useEffect(() => {
@@ -93,11 +94,10 @@ export function CommunityPage() {
   useEffect(() => {
     fetchMessages();
     const msgChannel = supabase
-      .channel('community_messages_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages' }, (payload) => {
+      .channel('community_messages_realtime_' + activeChannel)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_messages', filter: `channel_id=eq.${activeChannel}` }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new as any;
-          // Check if current user is mentioned
           if (newMsg.auteur !== username && newMsg.contenu?.includes(`@${username}`)) {
             toast({ title: `💬 ${newMsg.auteur} vous a mentionné`, description: newMsg.contenu.slice(0, 80) });
           }
@@ -117,14 +117,13 @@ export function CommunityPage() {
       })
       .subscribe();
 
-    // Polling de secours toutes les 10s (le realtime gère l'instantané)
     const pollInterval = setInterval(() => { fetchMessages(); }, 10000);
 
     return () => {
       supabase.removeChannel(msgChannel);
       clearInterval(pollInterval);
     };
-  }, [fetchMessages]);
+  }, [fetchMessages, activeChannel]);
 
   const prevMsgCount = useRef(0);
   const initialScrollDone = useRef(false);
@@ -315,6 +314,7 @@ export function CommunityPage() {
     await supabase.from('community_messages').insert({
       auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
       contenu: '🎤 Message vocal', type: 'voice', image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
+      channel_id: activeChannel,
     });
     setUploading(false);
   };
@@ -356,6 +356,7 @@ export function CommunityPage() {
         reactions: {},
         reply_to: replyId,
         user_id: user?.id,
+        channel_id: activeChannel,
       });
 
       if (error) {
@@ -408,6 +409,7 @@ export function CommunityPage() {
       auteur: username, avatar: userAvatar || username[0].toUpperCase(), couleur: userColor,
       contenu: getFileLabel(file), type: fileType,
       image_url: urlData.publicUrl, reactions: {}, user_id: user?.id,
+      channel_id: activeChannel,
     });
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -606,7 +608,7 @@ export function CommunityPage() {
         style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 10px 8px' }}
       >
 
-        {messages.filter(m => (m.channel_id || 'default') === activeChannel).length === 0 && !loading && (
+        {messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
             {(() => { const s = sessions.find(x => x.id === activeChannel); return s ? <span className="text-4xl mb-3">{s.icone}</span> : null; })()}
             <p className="text-base font-medium text-foreground">{sessions.find(x => x.id === activeChannel)?.nom || 'Salon'}</p>
@@ -614,7 +616,7 @@ export function CommunityPage() {
             <p className="text-xs mt-0.5 opacity-60">Soyez le premier à écrire ! 💬</p>
           </div>
         )}
-        {messages.filter(m => (m.channel_id || 'default') === activeChannel).map((msg) => {
+        {messages.map((msg) => {
           const isMe = msg.auteur === username;
           const isDeleted = msg.is_deleted;
           const replyMsg = getReplyMsg(msg.reply_to);

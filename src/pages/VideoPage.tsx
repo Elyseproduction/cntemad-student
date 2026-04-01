@@ -6,6 +6,7 @@ import {
   Plus, Trash2, X, Play, Video, Filter,
   ChevronLeft, ChevronRight, Calendar, BookOpen,
   Upload, FileVideo, Loader2, Maximize2, Minimize2, Smartphone,
+  Download,
 } from 'lucide-react';
 
 /* ─── Extract a JPEG frame from a local video file ─────────────────────────── */
@@ -66,7 +67,7 @@ export function VideoPage() {
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [videoOrientation, setVideoOrientation] = useState<'landscape' | 'portrait'>('landscape'); // detected from video metadata
+  const [videoOrientation, setVideoOrientation] = useState<'landscape' | 'portrait'>('landscape');
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -76,8 +77,58 @@ export function VideoPage() {
   const [localFile, setLocalFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [showDownloadModal, setShowDownloadModal] = useState<string | null>(null);
+  const [videoFileSizes, setVideoFileSizes] = useState<Record<string, number>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fetch file size for local videos
+  const fetchFileSize = useCallback(async (videoId: string, url: string) => {
+    if (videoFileSizes[videoId]) return;
+    try {
+      const res = await fetch(url, { method: 'HEAD' });
+      const size = parseInt(res.headers.get('content-length') || '0', 10);
+      if (size > 0) setVideoFileSizes(prev => ({ ...prev, [videoId]: size }));
+    } catch { /* ignore */ }
+  }, [videoFileSizes]);
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} Go`;
+  };
+
+  const handleDownloadVideo = async (video: any) => {
+    if (video.videoType === 'local' && video.localUrl) {
+      setDownloading(video.id);
+      try {
+        const res = await fetch(video.localUrl);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${video.titre.replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ\s-]/g, '')}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch {
+        alert('Erreur lors du téléchargement.');
+      }
+      setDownloading(null);
+    } else if (video.youtubeUrl) {
+      // Open YouTube video in new tab - direct download not possible
+      window.open(video.youtubeUrl, '_blank');
+    }
+  };
+
+  // Fetch sizes for local videos on mount
+  useEffect(() => {
+    videos.forEach(v => {
+      if (v.videoType === 'local' && v.localUrl) fetchFileSize(v.id, v.localUrl);
+    });
+  }, [videos]);
 
   // Get matières that belong to the active session
   const sessionMatieres = useMemo(() => {
@@ -489,6 +540,10 @@ export function VideoPage() {
             <div className="p-4">
               <h3 className="font-heading font-medium text-sm line-clamp-2 mb-2">{video.titre}</h3>
               {video.description && <p className="text-xs text-muted-foreground line-clamp-1 mb-2">{video.description}</p>}
+              {/* File size for local videos */}
+              {video.videoType === 'local' && videoFileSizes[video.id] && (
+                <p className="text-xs text-muted-foreground mb-2">📦 {formatFileSize(videoFileSizes[video.id])}</p>
+              )}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {video.matiere && (
@@ -500,11 +555,21 @@ export function VideoPage() {
                     <Calendar size={10} /> {video.date}
                   </span>
                 </div>
-                {isAdmin && (
-                  <button onClick={e => { e.stopPropagation(); handleDelete(video.id); }} className="p-1.5 rounded-md text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors">
-                    <Trash2 size={14} />
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={e => { e.stopPropagation(); handleDownloadVideo(video); }}
+                    disabled={downloading === video.id}
+                    className="p-1.5 rounded-md text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors"
+                    title={video.videoType === 'local' ? 'Télécharger la vidéo' : 'Ouvrir sur YouTube'}
+                  >
+                    {downloading === video.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                   </button>
-                )}
+                  {isAdmin && (
+                    <button onClick={e => { e.stopPropagation(); handleDelete(video.id); }} className="p-1.5 rounded-md text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -546,6 +611,9 @@ export function VideoPage() {
                         </span>
                       )}
                       <span className="text-xs text-white/50">{video.date}</span>
+                      {video.videoType === 'local' && videoFileSizes[video.id] && (
+                        <span className="text-xs text-white/40">📦 {formatFileSize(videoFileSizes[video.id])}</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -560,6 +628,15 @@ export function VideoPage() {
                   {/* Theater mode (desktop only) */}
                   <button onClick={() => setIsTheaterMode(p => !p)} className="p-2 rounded-lg hover:bg-white/10 transition-colors hidden md:flex text-white" title="Mode cinéma (F)">
                     {isTheaterMode ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                  </button>
+                  {/* Download button */}
+                  <button
+                    onClick={() => handleDownloadVideo(video)}
+                    disabled={downloading === video.id}
+                    className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white"
+                    title={video.videoType === 'local' ? `Télécharger${videoFileSizes[video.id] ? ` (${formatFileSize(videoFileSizes[video.id])})` : ''}` : 'Ouvrir sur YouTube'}
+                  >
+                    {downloading === video.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
                   </button>
                   {/* Fullscreen landscape button */}
                   <button onClick={toggleFullscreen} className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white" title="Plein écran paysage">

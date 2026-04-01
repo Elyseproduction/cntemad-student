@@ -1,0 +1,1 @@
+ALTER TABLE public.community_messages ADD COLUMN channel_id text NOT NULL DEFAULT 'default';

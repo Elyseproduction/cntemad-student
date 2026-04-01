@@ -616,7 +616,7 @@ export function CommunityPage() {
             <p className="text-xs mt-0.5 opacity-60">Soyez le premier à écrire ! 💬</p>
           </div>
         )}
-        {messages.filter(m => (m.channel_id || 'default') === activeChannel).map((msg) => {
+        {messages.map((msg) => {
           const isMe = msg.auteur === username;
           const isDeleted = msg.is_deleted;
           const replyMsg = getReplyMsg(msg.reply_to);

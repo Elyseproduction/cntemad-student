@@ -6,6 +6,7 @@ import {
   Plus, Trash2, X, Play, Video, Filter,
   ChevronLeft, ChevronRight, Calendar, BookOpen,
   Upload, FileVideo, Loader2, Maximize2, Minimize2, Smartphone,
+  Download,
 } from 'lucide-react';
 
 /* ─── Extract a JPEG frame from a local video file ─────────────────────────── */

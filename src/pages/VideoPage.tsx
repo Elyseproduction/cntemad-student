@@ -67,7 +67,7 @@ export function VideoPage() {
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [videoOrientation, setVideoOrientation] = useState<'landscape' | 'portrait'>('landscape'); // detected from video metadata
+  const [videoOrientation, setVideoOrientation] = useState<'landscape' | 'portrait'>('landscape');
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -77,8 +77,58 @@ export function VideoPage() {
   const [localFile, setLocalFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [showDownloadModal, setShowDownloadModal] = useState<string | null>(null);
+  const [videoFileSizes, setVideoFileSizes] = useState<Record<string, number>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fetch file size for local videos
+  const fetchFileSize = useCallback(async (videoId: string, url: string) => {
+    if (videoFileSizes[videoId]) return;
+    try {
+      const res = await fetch(url, { method: 'HEAD' });
+      const size = parseInt(res.headers.get('content-length') || '0', 10);
+      if (size > 0) setVideoFileSizes(prev => ({ ...prev, [videoId]: size }));
+    } catch { /* ignore */ }
+  }, [videoFileSizes]);
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} Go`;
+  };
+
+  const handleDownloadVideo = async (video: any) => {
+    if (video.videoType === 'local' && video.localUrl) {
+      setDownloading(video.id);
+      try {
+        const res = await fetch(video.localUrl);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${video.titre.replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ\s-]/g, '')}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch {
+        alert('Erreur lors du téléchargement.');
+      }
+      setDownloading(null);
+    } else if (video.youtubeUrl) {
+      // Open YouTube video in new tab - direct download not possible
+      window.open(video.youtubeUrl, '_blank');
+    }
+  };
+
+  // Fetch sizes for local videos on mount
+  useEffect(() => {
+    videos.forEach(v => {
+      if (v.videoType === 'local' && v.localUrl) fetchFileSize(v.id, v.localUrl);
+    });
+  }, [videos]);
 
   // Get matières that belong to the active session
   const sessionMatieres = useMemo(() => {

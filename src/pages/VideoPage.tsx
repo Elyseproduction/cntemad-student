@@ -540,6 +540,10 @@ export function VideoPage() {
             <div className="p-4">
               <h3 className="font-heading font-medium text-sm line-clamp-2 mb-2">{video.titre}</h3>
               {video.description && <p className="text-xs text-muted-foreground line-clamp-1 mb-2">{video.description}</p>}
+              {/* File size for local videos */}
+              {video.videoType === 'local' && videoFileSizes[video.id] && (
+                <p className="text-xs text-muted-foreground mb-2">📦 {formatFileSize(videoFileSizes[video.id])}</p>
+              )}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {video.matiere && (
@@ -551,11 +555,21 @@ export function VideoPage() {
                     <Calendar size={10} /> {video.date}
                   </span>
                 </div>
-                {isAdmin && (
-                  <button onClick={e => { e.stopPropagation(); handleDelete(video.id); }} className="p-1.5 rounded-md text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors">
-                    <Trash2 size={14} />
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={e => { e.stopPropagation(); handleDownloadVideo(video); }}
+                    disabled={downloading === video.id}
+                    className="p-1.5 rounded-md text-primary/60 hover:text-primary hover:bg-primary/10 transition-colors"
+                    title={video.videoType === 'local' ? 'Télécharger la vidéo' : 'Ouvrir sur YouTube'}
+                  >
+                    {downloading === video.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                   </button>
-                )}
+                  {isAdmin && (
+                    <button onClick={e => { e.stopPropagation(); handleDelete(video.id); }} className="p-1.5 rounded-md text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -357,6 +357,7 @@ export function CommunityPage() {
         reactions: {},
         reply_to: replyId,
         user_id: user?.id,
+        channel_id: activeChannel,
       });
 
       if (error) {

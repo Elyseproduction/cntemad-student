@@ -529,8 +529,11 @@ export function CommunityPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden', maxWidth: '100%' }}>
       {/* Onglets de session */}
-      <div style={{ flexShrink: 0, background: 'var(--background)', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', padding: '8px 12px', scrollbarWidth: 'none' }}>
+      <div style={{ flexShrink: 0, background: 'var(--background)', borderBottom: '1px solid var(--border)', position: 'relative' }}>
+        {/* Scroll fade indicators */}
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '24px', background: 'linear-gradient(to right, var(--background), transparent)', zIndex: 2, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '24px', background: 'linear-gradient(to left, var(--background), transparent)', zIndex: 2, pointerEvents: 'none' }} />
+        <div className="no-scrollbar" style={{ display: 'flex', gap: '6px', overflowX: 'auto', padding: '8px 28px', scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {sessions.map(session => {
             const isActive = activeChannel === session.id;
             const msgCount = messages.filter(m => (m.channel_id || 'default') === session.id).length;

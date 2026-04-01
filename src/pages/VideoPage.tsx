@@ -611,6 +611,9 @@ export function VideoPage() {
                         </span>
                       )}
                       <span className="text-xs text-white/50">{video.date}</span>
+                      {video.videoType === 'local' && videoFileSizes[video.id] && (
+                        <span className="text-xs text-white/40">📦 {formatFileSize(videoFileSizes[video.id])}</span>
+                      )}
                     </div>
                   </div>
                 </div>

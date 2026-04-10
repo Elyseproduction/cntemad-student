@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code, Mic, MicOff, Play } from 'lucide-react';
+import { Send, Smile, Users, Image, Download, X, Copy, Reply, Pencil, Trash2, Check, MoreVertical, Paperclip, FileText, LogOut, AtSign, ShieldCheck, Code, Mic, MicOff, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOnlineCount, useOnlineUsers } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
@@ -529,12 +529,22 @@ export function CommunityPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden', maxWidth: '100%' }}>
       {/* Onglets de session */}
-      <div style={{ flexShrink: 0, background: 'var(--background)', borderBottom: '1px solid var(--border)', position: 'relative' }}>
+      <div style={{ flexShrink: 0, background: 'var(--background)', borderBottom: '1px solid var(--border)', position: 'relative', display: 'flex', alignItems: 'center' }}>
+        {/* Scroll left button */}
+        <button
+          onClick={() => { const el = document.getElementById('community-session-scroll'); if (el) el.scrollBy({ left: -150, behavior: 'smooth' }); }}
+          style={{ flexShrink: 0, width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--secondary)', border: '1px solid var(--border)', borderRadius: '50%', cursor: 'pointer', marginLeft: '4px', zIndex: 3, color: 'var(--muted-foreground)' }}
+          className="hover:bg-primary/10 hover:text-primary transition-colors"
+          title="Défiler à gauche"
+        >
+          <ChevronLeft size={16} />
+        </button>
         {/* Scroll fade indicators */}
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '24px', background: 'linear-gradient(to right, var(--background), transparent)', zIndex: 2, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '24px', background: 'linear-gradient(to left, var(--background), transparent)', zIndex: 2, pointerEvents: 'none' }} />
-        <div className="no-scrollbar" style={{ display: 'flex', gap: '6px', overflowX: 'auto', padding: '8px 28px', scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          {sessions.map(session => {
+        <div style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '16px', background: 'linear-gradient(to right, var(--background), transparent)', zIndex: 2, pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '16px', background: 'linear-gradient(to left, var(--background), transparent)', zIndex: 2, pointerEvents: 'none' }} />
+          <div id="community-session-scroll" className="no-scrollbar" style={{ display: 'flex', gap: '6px', overflowX: 'auto', padding: '8px 20px', scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {sessions.map(session => {
             const isActive = activeChannel === session.id;
             const msgCount = messages.filter(m => (m.channel_id || 'default') === session.id).length;
             return (
@@ -589,7 +599,17 @@ export function CommunityPage() {
               </button>
             );
           })}
+          </div>
         </div>
+        {/* Scroll right button */}
+        <button
+          onClick={() => { const el = document.getElementById('community-session-scroll'); if (el) el.scrollBy({ left: 150, behavior: 'smooth' }); }}
+          style={{ flexShrink: 0, width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--secondary)', border: '1px solid var(--border)', borderRadius: '50%', cursor: 'pointer', marginRight: '4px', zIndex: 3, color: 'var(--muted-foreground)' }}
+          className="hover:bg-primary/10 hover:text-primary transition-colors"
+          title="Défiler à droite"
+        >
+          <ChevronRight size={16} />
+        </button>
       </div>
 
       {/* Barre "en ligne" */}

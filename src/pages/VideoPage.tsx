@@ -339,8 +339,19 @@ export function VideoPage() {
       )}
 
       {/* Session tabs */}
-      <div className="mb-5" style={{ borderBottom: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', padding: '10px 0 10px', scrollbarWidth: 'none' }}>
+      <div className="mb-5" style={{ borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center' }}>
+        <button
+          onClick={() => { const el = document.getElementById('video-session-scroll'); if (el) el.scrollBy({ left: -150, behavior: 'smooth' }); }}
+          style={{ flexShrink: 0, width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--secondary)', border: '1px solid var(--border)', borderRadius: '50%', cursor: 'pointer', marginLeft: '4px', zIndex: 3, color: 'var(--muted-foreground)' }}
+          className="hover:bg-primary/10 hover:text-primary transition-colors"
+          title="Défiler à gauche"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <div style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '16px', background: 'linear-gradient(to right, var(--background), transparent)', zIndex: 2, pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '16px', background: 'linear-gradient(to left, var(--background), transparent)', zIndex: 2, pointerEvents: 'none' }} />
+        <div id="video-session-scroll" className="no-scrollbar" style={{ display: 'flex', gap: '6px', overflowX: 'auto', padding: '10px 20px', scrollBehavior: 'smooth', scrollbarWidth: 'none' }}>
           {/* "Toutes" pill */}
           {(() => {
             const isAll = activeSession === 'all';
@@ -428,20 +439,40 @@ export function VideoPage() {
             );
           })}
         </div>
+        </div>
+        <button
+          onClick={() => { const el = document.getElementById('video-session-scroll'); if (el) el.scrollBy({ left: 150, behavior: 'smooth' }); }}
+          style={{ flexShrink: 0, width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--secondary)', border: '1px solid var(--border)', borderRadius: '50%', cursor: 'pointer', marginRight: '4px', zIndex: 3, color: 'var(--muted-foreground)' }}
+          className="hover:bg-primary/10 hover:text-primary transition-colors"
+          title="Défiler à droite"
+        >
+          <ChevronRight size={16} />
+        </button>
       </div>
 
-      {/* Filter bar */}
+      {/* Filter toggle + bar */}
       {matieres.length > 0 && (
-        <div className="flex items-center gap-2 mb-6 flex-wrap">
-          <Filter size={16} className="text-muted-foreground" />
-          <button onClick={() => setFilter('')} className={`px-3 py-1.5 rounded-lg text-sm transition-all ${!filter ? 'bg-primary/15 text-primary border border-primary/20' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
-            Toutes
+        <div className="mb-6">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all bg-secondary text-muted-foreground hover:text-foreground hover:bg-primary/10 mb-2"
+          >
+            <Filter size={14} />
+            <span>{showFilters ? 'Masquer les filtres' : 'Afficher les filtres'}</span>
+            {filter && <span className="text-xs text-primary font-medium">• {filter}</span>}
           </button>
-          {matieres.map(m => (
-            <button key={m} onClick={() => setFilter(m)} className={`px-3 py-1.5 rounded-lg text-sm transition-all ${filter === m ? 'bg-primary/15 text-primary border border-primary/20' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
-              {m}
-            </button>
-          ))}
+          {showFilters && (
+            <div className="flex items-center gap-2 flex-wrap animate-fade-in">
+              <button onClick={() => setFilter('')} className={`px-3 py-1.5 rounded-lg text-sm transition-all ${!filter ? 'bg-primary/15 text-primary border border-primary/20' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
+                Toutes
+              </button>
+              {matieres.map(m => (
+                <button key={m} onClick={() => setFilter(m)} className={`px-3 py-1.5 rounded-lg text-sm transition-all ${filter === m ? 'bg-primary/15 text-primary border border-primary/20' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
+                  {m}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

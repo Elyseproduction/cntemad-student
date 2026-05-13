@@ -161,6 +161,11 @@ export function CommunityPage() {
     return () => document.removeEventListener('click', handler);
   }, [activeMenu]);
 
+  // Persist active channel
+  useEffect(() => {
+    localStorage.setItem('unilearn_community_channel', activeChannel);
+  }, [activeChannel]);
+
   // Mention logic - show all registered users, with online indicator
   const onlineNames = new Set(onlineUsers.map(u => u.username));
   const filteredMentionUsers = allProfiles

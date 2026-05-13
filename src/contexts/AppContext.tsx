@@ -284,7 +284,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dbLoaded, setDbLoaded] = useState(false);
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistory[]>([]);
   const [darkMode, setDarkMode] = useState(true);
-  const [activeTab, setActiveTab] = useState('cours');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('unilearn_active_tab') || 'cours');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const initialLoadDone = useRef(false);
   const isAdminRef = useRef(isAdmin);

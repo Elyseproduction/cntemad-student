@@ -58,7 +58,7 @@ export function CommunityPage() {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   const { sessions } = useApp();
-  const [activeChannel, setActiveChannel] = useState('default');
+  const [activeChannel, setActiveChannel] = useState(() => localStorage.getItem('unilearn_community_channel') || 'default');
 
   const username = profile?.display_name || user?.email?.split('@')[0] || 'Anonyme';
   const userAvatar = profile?.avatar_url || '';

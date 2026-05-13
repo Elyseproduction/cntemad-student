@@ -493,6 +493,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('app_exercise_history', JSON.stringify(exerciseHistory));
   }, [exerciseHistory]);
 
+  // Persist active tab
+  useEffect(() => {
+    localStorage.setItem('unilearn_active_tab', activeTab);
+  }, [activeTab]);
+
   const getAdminPassword = () => localStorage.getItem('app_admin_password') || 'ZahGasy1';
 
   const login = useCallback((password: string) => {

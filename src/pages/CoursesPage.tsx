@@ -344,6 +344,11 @@ export function CoursesPage() {
   const [newChapterTitle, setNewChapterTitle] = useState('');
   const [readProgress, setReadProgress] = useState(0);
 
+  // Persist selected session
+  useEffect(() => {
+    localStorage.setItem('unilearn_courses_session', selectedSessionId ?? 'null');
+  }, [selectedSessionId]);
+
   const currentSession = useMemo(() =>
     sessions.find(s => s.id === selectedSessionId) || null,
     [sessions, selectedSessionId]

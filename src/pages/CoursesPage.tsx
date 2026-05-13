@@ -329,7 +329,10 @@ export function CoursesPage() {
   const { toast } = useToast();
 
   // Navigation levels: null = sessions grid | string = selected session id
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(() => {
+    const saved = localStorage.getItem('unilearn_courses_session');
+    return saved === 'null' ? null : saved;
+  });
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [search, setSearch] = useState('');

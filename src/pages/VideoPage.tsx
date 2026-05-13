@@ -62,7 +62,7 @@ function isFSActive() {
 /* ─── Main component ────────────────────────────────────────────────────────── */
 export function VideoPage() {
   const { videos, setVideos, subjects, sessions, isAdmin } = useApp();
-  const [activeSession, setActiveSession] = useState('all');
+  const [activeSession, setActiveSession] = useState(() => localStorage.getItem('unilearn_video_session') || 'all');
   const [filter, setFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);

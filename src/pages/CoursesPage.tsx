@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useApp, Subject, Chapter, Session, DEFAULT_SESSION } from '@/contexts/AppContext';
 import { ArrowLeft, Plus, Trash2, Search, ChevronRight, Upload, CheckCircle, RotateCcw, BookOpen, FileUp, Loader2, FolderOpen, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -329,7 +329,10 @@ export function CoursesPage() {
   const { toast } = useToast();
 
   // Navigation levels: null = sessions grid | string = selected session id
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(() => {
+    const saved = localStorage.getItem('unilearn_courses_session');
+    return saved === 'null' ? null : saved;
+  });
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [search, setSearch] = useState('');
@@ -340,6 +343,11 @@ export function CoursesPage() {
   const [showImportCourse, setShowImportCourse] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState('');
   const [readProgress, setReadProgress] = useState(0);
+
+  // Persist selected session
+  useEffect(() => {
+    localStorage.setItem('unilearn_courses_session', selectedSessionId ?? 'null');
+  }, [selectedSessionId]);
 
   const currentSession = useMemo(() =>
     sessions.find(s => s.id === selectedSessionId) || null,

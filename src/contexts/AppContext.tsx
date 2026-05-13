@@ -284,7 +284,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dbLoaded, setDbLoaded] = useState(false);
   const [exerciseHistory, setExerciseHistory] = useState<ExerciseHistory[]>([]);
   const [darkMode, setDarkMode] = useState(true);
-  const [activeTab, setActiveTab] = useState('cours');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('unilearn_active_tab') || 'cours');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const initialLoadDone = useRef(false);
   const isAdminRef = useRef(isAdmin);
@@ -492,6 +492,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('app_exercise_history', JSON.stringify(exerciseHistory));
   }, [exerciseHistory]);
+
+  // Persist active tab
+  useEffect(() => {
+    localStorage.setItem('unilearn_active_tab', activeTab);
+  }, [activeTab]);
 
   const getAdminPassword = () => localStorage.getItem('app_admin_password') || 'ZahGasy1';
 

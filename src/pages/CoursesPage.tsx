@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useApp, Subject, Chapter, Session, DEFAULT_SESSION } from '@/contexts/AppContext';
 import { ArrowLeft, Plus, Trash2, Search, ChevronRight, Upload, CheckCircle, RotateCcw, BookOpen, FileUp, Loader2, FolderOpen, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';

@@ -131,6 +131,11 @@ export function VideoPage() {
     });
   }, [videos]);
 
+  // Persist active session
+  useEffect(() => {
+    localStorage.setItem('unilearn_video_session', activeSession);
+  }, [activeSession]);
+
   // Get matières that belong to the active session
   const sessionMatieres = useMemo(() => {
     if (activeSession === 'all') return null; // null = no session filter

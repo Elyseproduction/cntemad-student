@@ -240,18 +240,41 @@ export function Layout({ children }: { children: React.ReactNode }) {
         paddingBottom safe-area = support iPhone avec barre d'accueil.
       */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-[60] md:hidden bg-card/95 backdrop-blur-xl border-t border-border flex"
+        className="fixed bottom-0 left-0 right-0 z-[60] md:hidden flex bg-card/80 backdrop-blur-2xl border-t border-primary/15 shadow-[0_-8px_24px_-12px_hsl(var(--primary)/0.4)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        {tabs.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} aria-label={tab.label}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] transition-colors relative ${
-              activeTab === tab.id ? 'text-primary' : 'text-muted-foreground'
-            }`}>
-            <div className="relative"><tab.icon size={20} />{renderBadge(tab.id)}</div>
-            <span className="text-[9px] font-medium leading-none">{tab.label}</span>
-          </button>
-        ))}
+        {tabs.map(tab => {
+          const isActive = activeTab === tab.id;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              aria-label={tab.label}
+              className={`group flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] relative transition-all duration-300 active:scale-95 ${
+                isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {/* Neon top indicator */}
+              <span
+                className={`absolute top-0 left-1/2 -translate-x-1/2 h-[3px] rounded-b-full bg-gradient-to-r from-primary via-accent to-primary transition-all duration-300 ${
+                  isActive ? 'w-8 opacity-100 shadow-[0_0_8px_hsl(var(--primary))]' : 'w-0 opacity-0'
+                }`}
+              />
+              {/* Glow halo when active */}
+              {isActive && (
+                <span className="absolute inset-x-2 top-1.5 h-9 rounded-2xl bg-primary/15 blur-md -z-0" />
+              )}
+              <div className={`relative transition-transform duration-300 ${isActive ? 'scale-110 -translate-y-0.5' : 'group-active:scale-90'}`}>
+                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                {renderBadge(tab.id)}
+              </div>
+              <span className={`relative text-[9px] leading-none font-medium transition-all duration-300 ${isActive ? 'opacity-100 font-semibold' : 'opacity-70'}`}>
+                {tab.short}
+              </span>
+            </button>
+          );
+        })}
       </nav>
 
       {/* Mobile menu overlay */}

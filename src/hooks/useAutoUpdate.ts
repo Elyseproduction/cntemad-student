@@ -26,9 +26,15 @@ export function useAutoUpdate() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
-    // When new SW activates, mark update as ready (don't reload!)
+    // When new SW activates, mark update as ready
+    let reloaded = false;
     const onControllerChange = () => {
       setUpdateReady(true);
+      // Auto-reload once so installed PWAs always pick up the new build
+      if (!reloaded) {
+        reloaded = true;
+        setTimeout(() => window.location.reload(), 300);
+      }
     };
 
     navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);

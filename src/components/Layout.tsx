@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import { BookOpen, Brain, MessageCircle, Video, Settings, Moon, Sun, Lock, Menu, X, Download, Users, HelpCircle } from 'lucide-react';
+import { BookOpen, Brain, MessageCircle, Video, Settings, Moon, Sun, Lock, Menu, X, Download, Users, HelpCircle, Home } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useApp } from '@/contexts/AppContext';
 import { AdminModal } from '@/components/AdminModal';
@@ -7,11 +7,12 @@ import { ProfileMenu } from '@/components/ProfileMenu';
 import { supabase } from '@/integrations/supabase/client';
 
 const tabs = [
-  { id: 'cours',      label: 'Cours',        icon: BookOpen,      emoji: '📚' },
-  { id: 'exercices',  label: 'Exercices IA',  icon: Brain,         emoji: '🧠' },
-  { id: 'communaute', label: 'Communauté',    icon: MessageCircle, emoji: '💬' },
-  { id: 'videos',     label: 'Vidéothèque',   icon: Video,         emoji: '🎬' },
-  { id: 'guide',      label: 'Guide',         icon: HelpCircle,    emoji: '❓' },
+  { id: 'accueil',    label: 'Accueil',      short: 'Accueil', icon: Home,          emoji: '🏠' },
+  { id: 'cours',      label: 'Cours',        short: 'Cours',   icon: BookOpen,      emoji: '📚' },
+  { id: 'exercices',  label: 'Exercices IA', short: 'IA',      icon: Brain,         emoji: '🧠' },
+  { id: 'communaute', label: 'Communauté',   short: 'Chat',    icon: MessageCircle, emoji: '💬' },
+  { id: 'videos',     label: 'Vidéothèque',  short: 'Vidéos',  icon: Video,         emoji: '🎬' },
+  { id: 'guide',      label: 'Guide',        short: 'Guide',   icon: HelpCircle,    emoji: '❓' },
 ];
 
 const NAV_H = 56; // px hauteur de la nav mobile

@@ -9,6 +9,7 @@ import { ExercisesPage } from "@/pages/ExercisesPage";
 import { CommunityPage } from "@/pages/CommunityPage";
 import { VideoPage } from "@/pages/VideoPage";
 import { GuidePage } from "@/pages/GuidePage";
+import { HomePage } from "@/pages/HomePage";
 import { useAuth } from "@/hooks/useAuth";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { ProfileSetup } from "@/components/ProfileSetup";
@@ -58,6 +59,7 @@ function AppContent() {
 
   return (
     <Layout>
+      {activeTab === 'accueil' && <HomePage />}
       {activeTab === 'cours' && <CoursesPage />}
       {activeTab === 'exercices' && <ExercisesPage />}
       {activeTab === 'communaute' && <CommunityPage />}

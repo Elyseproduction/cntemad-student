@@ -419,6 +419,19 @@ export function ProfileMenu() {
             </button>
 
             <button
+              onClick={clearAppCache}
+              disabled={clearingCache}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-warning hover:bg-warning/10 transition-colors text-sm"
+            >
+              {clearingCache ? (
+                <div className="animate-spin w-4 h-4 border-2 border-warning border-t-transparent rounded-full" />
+              ) : (
+                <RotateCcw size={16} />
+              )}
+              Réinitialiser le cache
+            </button>
+
+            <button
               onClick={signOut}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-destructive hover:bg-destructive/10 transition-colors text-sm"
             >

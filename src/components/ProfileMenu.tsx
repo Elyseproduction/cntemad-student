@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   Camera, Check, LogOut, AlertCircle,
   ImagePlus, Trash2, Calendar, MessageSquare,
-  ShieldCheck, Code, ChevronRight,
+  ShieldCheck, Code, ChevronRight, RotateCcw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';

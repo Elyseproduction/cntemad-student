@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   Camera, Check, LogOut, AlertCircle,
   ImagePlus, Trash2, Calendar, MessageSquare,
-  ShieldCheck, Code, ChevronRight,
+  ShieldCheck, Code, ChevronRight, RotateCcw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -67,6 +67,7 @@ export function ProfileMenu() {
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
   const [msgCount,       setMsgCount]       = useState<number | null>(null);
   const [uploading,      setUploading]      = useState(false);
+  const [clearingCache,  setClearingCache]  = useState(false);
 
   useEffect(() => { if (!open) setShowPhotoSheet(false); }, [open]);
   useEffect(() => {
@@ -170,6 +171,27 @@ export function ProfileMenu() {
     setSaving(false);
     setOpen(false);
     if (avatarFile || removeAvatar) window.location.reload();
+  };
+
+  const clearAppCache = async () => {
+    setClearingCache(true);
+    try {
+      // 1. Unregister all service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(r => r.unregister()));
+      }
+      // 2. Delete all caches
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      toast({ title: 'Cache réinitialisé', description: 'L\'application va se recharger.' });
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      toast({ title: 'Erreur', description: 'Impossible de nettoyer le cache.', variant: 'destructive' });
+      setClearingCache(false);
+    }
   };
 
   if (!user || !profile) return null;
@@ -394,6 +416,19 @@ export function ProfileMenu() {
                 ? <div className="animate-spin w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full" />
                 : <><Check size={18} /> {hasChanges() ? 'Enregistrer' : 'Fermer'}</>
               }
+            </button>
+
+            <button
+              onClick={clearAppCache}
+              disabled={clearingCache}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-warning hover:bg-warning/10 transition-colors text-sm"
+            >
+              {clearingCache ? (
+                <div className="animate-spin w-4 h-4 border-2 border-warning border-t-transparent rounded-full" />
+              ) : (
+                <RotateCcw size={16} />
+              )}
+              Réinitialiser le cache
             </button>
 
             <button

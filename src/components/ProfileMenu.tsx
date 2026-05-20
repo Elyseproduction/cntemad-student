@@ -173,6 +173,27 @@ export function ProfileMenu() {
     if (avatarFile || removeAvatar) window.location.reload();
   };
 
+  const clearAppCache = async () => {
+    setClearingCache(true);
+    try {
+      // 1. Unregister all service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(r => r.unregister()));
+      }
+      // 2. Delete all caches
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      toast({ title: 'Cache réinitialisé', description: 'L\'application va se recharger.' });
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      toast({ title: 'Erreur', description: 'Impossible de nettoyer le cache.', variant: 'destructive' });
+      setClearingCache(false);
+    }
+  };
+
   if (!user || !profile) return null;
 
   const joinDate = (profile as any).created_at

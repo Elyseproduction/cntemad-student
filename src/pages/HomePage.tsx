@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/hooks/useAuth';
+import { APP_BUILD_ID } from '@/lib/version';
 import {
   BookOpen, Brain, Video, MessageCircle, Flame, Trophy, Sparkles,
   ArrowRight, Clock, Target, TrendingUp, Zap, GraduationCap, ChevronRight,

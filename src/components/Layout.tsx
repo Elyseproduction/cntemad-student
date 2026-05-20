@@ -4,6 +4,7 @@ import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useApp } from '@/contexts/AppContext';
 import { AdminModal } from '@/components/AdminModal';
 import { ProfileMenu } from '@/components/ProfileMenu';
+import { APP_BUILD_ID } from '@/lib/version';
 import { supabase } from '@/integrations/supabase/client';
 
 const tabs = [

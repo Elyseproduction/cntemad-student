@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/hooks/useAuth';
+import { APP_BUILD_ID } from '@/lib/version';
 import {
   BookOpen, Brain, Video, MessageCircle, Flame, Trophy, Sparkles,
   ArrowRight, Clock, Target, TrendingUp, Zap, GraduationCap, ChevronRight,
@@ -269,6 +270,13 @@ export function HomePage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Build version */}
+      <div className="flex justify-center animate-fade-in" style={{ animationDelay: '800ms' }}>
+        <span className="text-[10px] font-mono text-muted-foreground/30 bg-secondary/20 px-2 py-1 rounded-md border border-white/5">
+          {APP_BUILD_ID}
+        </span>
       </div>
     </div>
   );

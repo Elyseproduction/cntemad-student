@@ -186,8 +186,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <h2 className="font-heading font-semibold text-base truncate max-w-[140px] sm:max-w-none">
               {tabs.find(t => t.id === activeTab)?.emoji} {tabs.find(t => t.id === activeTab)?.label}
             </h2>
+            <span className="text-[9px] font-mono text-muted-foreground/40 bg-secondary/30 px-1.5 py-0.5 rounded-md border border-white/5 whitespace-nowrap hidden sm:inline-block">
+              {APP_BUILD_ID}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            <span className="sm:hidden text-[8px] font-mono text-muted-foreground/40 bg-secondary/30 px-1.5 py-0.5 rounded-md border border-white/5 whitespace-nowrap">
+              {APP_BUILD_ID}
+            </span>
             <span className="md:hidden flex items-center gap-1 text-xs text-muted-foreground px-2 py-1 rounded-full bg-secondary/60 whitespace-nowrap">
               <Users size={12} /> {onlineCount}
             </span>

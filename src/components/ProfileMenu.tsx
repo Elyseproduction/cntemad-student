@@ -67,6 +67,7 @@ export function ProfileMenu() {
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
   const [msgCount,       setMsgCount]       = useState<number | null>(null);
   const [uploading,      setUploading]      = useState(false);
+  const [clearingCache,  setClearingCache]  = useState(false);
 
   useEffect(() => { if (!open) setShowPhotoSheet(false); }, [open]);
   useEffect(() => {

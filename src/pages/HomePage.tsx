@@ -271,6 +271,13 @@ export function HomePage() {
           ))}
         </div>
       </div>
+
+      {/* Build version */}
+      <div className="flex justify-center animate-fade-in" style={{ animationDelay: '800ms' }}>
+        <span className="text-[10px] font-mono text-muted-foreground/30 bg-secondary/20 px-2 py-1 rounded-md border border-white/5">
+          {APP_BUILD_ID}
+        </span>
+      </div>
     </div>
   );
 }

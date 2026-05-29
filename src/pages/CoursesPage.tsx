@@ -1,8 +1,149 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useApp, Subject, Chapter, Session, DEFAULT_SESSION } from '@/contexts/AppContext';
-import { ArrowLeft, Plus, Trash2, Search, ChevronRight, Upload, CheckCircle, RotateCcw, BookOpen, FileUp, Loader2, FolderOpen, Pencil } from 'lucide-react';
+import { useApp, Subject, Chapter, Session, DEFAULT_SESSION, ChapterImage } from '@/contexts/AppContext';
+import { ArrowLeft, Plus, Trash2, Search, ChevronRight, Upload, CheckCircle, RotateCcw, BookOpen, FileUp, Loader2, FolderOpen, Pencil, ImagePlus, Download, X as XIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+
+const formatBytes = (bytes: number) => {
+  if (!bytes) return '0 o';
+  const k = 1024;
+  const units = ['o', 'Ko', 'Mo', 'Go'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), units.length - 1);
+  return `${(bytes / Math.pow(k, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+};
+
+// ── Chapter Images Gallery ────────────────────────────────────────────────────
+function ChapterImagesGallery({ chapter, subjectId, isAdmin, onUpdate }: {
+  chapter: Chapter; subjectId: string; isAdmin: boolean;
+  onUpdate: (images: ChapterImage[]) => void;
+}) {
+  const { toast } = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<ChapterImage | null>(null);
+  const images = chapter.images || [];
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const added: ChapterImage[] = [];
+      for (const file of files) {
+        if (!file.type.startsWith('image/')) {
+          toast({ title: 'Format invalide', description: `${file.name} n'est pas une image.`, variant: 'destructive' });
+          continue;
+        }
+        if (file.size > 20 * 1024 * 1024) {
+          toast({ title: 'Fichier trop volumineux', description: `${file.name} dépasse 20 Mo.`, variant: 'destructive' });
+          continue;
+        }
+        const ext = file.name.split('.').pop() || 'jpg';
+        const path = `courses/${chapter.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error } = await supabase.storage.from('community-media').upload(path, file, {
+          cacheControl: '3600', upsert: false, contentType: file.type,
+        });
+        if (error) { toast({ title: 'Erreur upload', description: error.message, variant: 'destructive' }); continue; }
+        const { data } = supabase.storage.from('community-media').getPublicUrl(path);
+        added.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          url: data.publicUrl, name: file.name, size: file.size,
+          uploaded_at: new Date().toISOString(),
+        });
+      }
+      if (added.length) {
+        onUpdate([...(chapter.images || []), ...added]);
+        toast({ title: '✅ Images ajoutées', description: `${added.length} image(s) publiée(s).` });
+      }
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const handleDelete = (img: ChapterImage) => {
+    onUpdate(images.filter(i => i.id !== img.id));
+    toast({ title: 'Image supprimée' });
+  };
+
+  const handleDownload = async (img: ChapterImage) => {
+    try {
+      const res = await fetch(img.url);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = img.name;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.open(img.url, '_blank');
+    }
+  };
+
+  if (!isAdmin && images.length === 0) return null;
+
+  return (
+    <div className="glass-card p-3 md:p-6 mb-4 md:mb-6">
+      <div className="flex items-center justify-between mb-3 md:mb-4 flex-wrap gap-2">
+        <h3 className="font-heading font-semibold text-base md:text-lg">🖼️ Images du cours <span className="text-muted-foreground text-sm font-normal">({images.length})</span></h3>
+        {isAdmin && (
+          <label className="px-3 py-2 rounded-lg gradient-bg text-primary-foreground text-xs md:text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2 cursor-pointer">
+            {uploading ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
+            {uploading ? 'Upload...' : 'Ajouter des images'}
+            <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} disabled={uploading} />
+          </label>
+        )}
+      </div>
+      {images.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">Aucune image. Cliquez sur "Ajouter des images" pour publier des visuels (qualité originale conservée).</p>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {images.map(img => (
+            <div key={img.id} className="group relative rounded-xl overflow-hidden bg-muted/30 border border-border">
+              <button onClick={() => setPreview(img)} className="block w-full aspect-square overflow-hidden">
+                <img src={img.url} alt={img.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+              </button>
+              <div className="p-2 space-y-1">
+                <p className="text-xs font-medium truncate" title={img.name}>{img.name}</p>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] text-muted-foreground">{formatBytes(img.size)}</span>
+                  <div className="flex gap-1">
+                    <button onClick={() => handleDownload(img)} title="Télécharger" className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                      <Download size={12} />
+                    </button>
+                    {isAdmin && (
+                      <button onClick={() => handleDelete(img)} title="Supprimer" className="p-1.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors">
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {preview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setPreview(null)}>
+          <div className="absolute inset-0 bg-background/90 backdrop-blur-sm" />
+          <div className="relative max-w-5xl w-full max-h-[90vh] flex flex-col items-center gap-3" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setPreview(null)} className="absolute -top-2 -right-2 z-10 p-2 rounded-full bg-background border border-border hover:bg-muted">
+              <XIcon size={18} />
+            </button>
+            <img src={preview.url} alt={preview.name} className="max-w-full max-h-[75vh] object-contain rounded-xl" />
+            <div className="flex items-center gap-3 text-sm bg-background/80 backdrop-blur px-4 py-2 rounded-full border border-border">
+              <span className="font-medium truncate max-w-[200px]">{preview.name}</span>
+              <span className="text-muted-foreground">{formatBytes(preview.size)}</span>
+              <button onClick={() => handleDownload(preview)} className="flex items-center gap-1 px-3 py-1 rounded-full gradient-bg text-primary-foreground text-xs font-medium">
+                <Download size={12} /> Télécharger
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const difficultyBadge = (d: string) => {
   if (d === 'Facile') return <span className="text-xs px-2 py-0.5 rounded-full bg-success/20 text-success">🟢 Facile</span>;

@@ -14,6 +14,14 @@ export interface Schema {
   representation_texte: string;
 }
 
+export interface ChapterImage {
+  id: string;
+  url: string;
+  name: string;
+  size: number; // bytes
+  uploaded_at: string;
+}
+
 export interface Chapter {
   id: string;
   titre: string;
@@ -25,6 +33,7 @@ export interface Chapter {
   conseil_revision: string;
   published: boolean;
   learned?: boolean;
+  images?: ChapterImage[];
 }
 
 export interface Session {

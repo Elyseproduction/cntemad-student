@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import { BookOpen, Brain, MessageCircle, Video, Settings, Moon, Sun, Lock, Menu, X, Download, Users, HelpCircle, Home } from 'lucide-react';
+import { BookOpen, Brain, MessageCircle, Video, Settings, Moon, Sun, Lock, Menu, X, Download, Users, HelpCircle, Home, Search } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useApp } from '@/contexts/AppContext';
 import { AdminModal } from '@/components/AdminModal';
@@ -191,6 +191,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            <button
+              onClick={() => window.dispatchEvent(new Event('unilearn:open-search'))}
+              title="Rechercher (Ctrl+K)"
+              aria-label="Rechercher"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-secondary/60 hover:bg-secondary text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Search size={13} />
+              <span className="hidden sm:inline font-mono text-[10px]">⌘K</span>
+            </button>
             <span className="sm:hidden text-[8px] font-mono text-muted-foreground/40 bg-secondary/30 px-1.5 py-0.5 rounded-md border border-white/5 whitespace-nowrap">
               {APP_BUILD_ID}
             </span>

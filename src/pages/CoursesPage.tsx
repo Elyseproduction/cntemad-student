@@ -573,6 +573,15 @@ export function CoursesPage() {
     setSelectedChapter(prev => prev ? { ...prev, learned: !prev.learned } : prev);
   };
 
+  const handleUpdateChapterImages = (images: ChapterImage[]) => {
+    if (!selectedSubject || !selectedChapter) return;
+    setSubjects(prev => prev.map(s => s.id === selectedSubject.id
+      ? { ...s, chapitres: s.chapitres.map(c => c.id === selectedChapter.id ? { ...c, images } : c) }
+      : s
+    ));
+    setSelectedChapter(prev => prev ? { ...prev, images } : prev);
+  };
+
   // ── Chapter View ────────────────────────────────────────────────────────────
   if (selectedChapter && selectedSubject) {
     return (
@@ -617,6 +626,13 @@ export function CoursesPage() {
         <div className="glass-card p-3 md:p-6 mb-4 md:mb-6 overflow-hidden w-full max-w-full">
           {selectedChapter.sections.map((section, i) => <SectionRenderer key={i} section={section} />)}
         </div>
+
+        <ChapterImagesGallery
+          chapter={selectedChapter}
+          subjectId={selectedSubject.id}
+          isAdmin={isAdmin}
+          onUpdate={handleUpdateChapterImages}
+        />
 
         {selectedChapter.schemas_detectes.length > 0 && (
           <div className="glass-card p-6 mb-6">

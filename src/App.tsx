@@ -16,6 +16,7 @@ import { ProfileSetup } from "@/components/ProfileSetup";
 import { InstallBanner } from "@/components/InstallBanner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { NotificationOverlay } from "@/components/NotificationOverlay";
+import { GlobalSearch } from "@/components/GlobalSearch";
 
 import { ProfileOpenProvider } from "@/contexts/ProfileOpenContext";
 
@@ -80,6 +81,7 @@ const App = () => (
           <AuthGate>
             <AppContent />
           </AuthGate>
+          <GlobalSearch />
           <NotificationOverlay />
           <InstallBanner />
         </AppProvider>

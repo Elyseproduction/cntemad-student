@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useApp, Subject, Chapter, Session, DEFAULT_SESSION, ChapterImage } from '@/contexts/AppContext';
+import { useApp, Subject, Chapter, Session, DEFAULT_SESSION, ChapterImage, ChapterPdf } from '@/contexts/AppContext';
 import { ArrowLeft, Plus, Trash2, Search, ChevronRight, Upload, CheckCircle, RotateCcw, BookOpen, FileUp, Loader2, FolderOpen, Pencil, ImagePlus, Download, X as XIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import ChapterPdfsSection from '@/components/ChapterPdfsSection';
 
 const formatBytes = (bytes: number) => {
   if (!bytes) return '0 o';

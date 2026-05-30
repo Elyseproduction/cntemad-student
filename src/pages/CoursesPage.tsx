@@ -583,6 +583,15 @@ export function CoursesPage() {
     setSelectedChapter(prev => prev ? { ...prev, images } : prev);
   };
 
+  const handleUpdateChapterPdfs = (pdfs: ChapterPdf[]) => {
+    if (!selectedSubject || !selectedChapter) return;
+    setSubjects(prev => prev.map(s => s.id === selectedSubject.id
+      ? { ...s, chapitres: s.chapitres.map(c => c.id === selectedChapter.id ? { ...c, pdfs } : c) }
+      : s
+    ));
+    setSelectedChapter(prev => prev ? { ...prev, pdfs } : prev);
+  };
+
   // ── Chapter View ────────────────────────────────────────────────────────────
   if (selectedChapter && selectedSubject) {
     return (

@@ -28,8 +28,6 @@ export default defineConfig(({ mode }) => ({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        // Ne jamais mettre en cache / intercepter les PDFs (lecture & téléchargement Android)
-        navigateFallback: null,
         runtimeCaching: [
           {
             urlPattern: ({ url, request }) =>

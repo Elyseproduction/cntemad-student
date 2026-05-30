@@ -24,11 +24,18 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ["favicon.ico", "pwa-icon-192.png", "pwa-icon-512.png"],
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        globPatterns: ["**/*.{js,mjs,css,html,ico,png,svg,woff2}"],
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         runtimeCaching: [
+          {
+            urlPattern: ({ url, request }) =>
+              url.pathname.endsWith(".pdf") ||
+              request.destination === "document" && url.pathname.includes(".pdf"),
+            handler: "NetworkOnly",
+            options: { cacheName: "pdf-passthrough" },
+          },
           {
             urlPattern: ({ request }) => request.mode === "navigate",
             handler: "NetworkFirst",

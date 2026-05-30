@@ -644,6 +644,12 @@ export function CoursesPage() {
           onUpdate={handleUpdateChapterImages}
         />
 
+        <ChapterPdfsSection
+          chapter={selectedChapter}
+          isAdmin={isAdmin}
+          onUpdate={handleUpdateChapterPdfs}
+        />
+
         {selectedChapter.schemas_detectes.length > 0 && (
           <div className="glass-card p-6 mb-6">
             <h3 className="section-h2 mb-4">Schémas</h3>

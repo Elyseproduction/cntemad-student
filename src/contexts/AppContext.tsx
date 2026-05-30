@@ -22,6 +22,15 @@ export interface ChapterImage {
   uploaded_at: string;
 }
 
+export interface ChapterPdf {
+  id: string;
+  url: string;
+  name: string;
+  size: number; // bytes
+  pages?: number;
+  uploaded_at: string;
+}
+
 export interface Chapter {
   id: string;
   titre: string;
@@ -34,6 +43,7 @@ export interface Chapter {
   published: boolean;
   learned?: boolean;
   images?: ChapterImage[];
+  pdfs?: ChapterPdf[];
 }
 
 export interface Session {

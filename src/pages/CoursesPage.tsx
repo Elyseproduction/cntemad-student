@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useApp, Subject, Chapter, Session, DEFAULT_SESSION, ChapterImage } from '@/contexts/AppContext';
+import { useApp, Subject, Chapter, Session, DEFAULT_SESSION, ChapterImage, ChapterPdf } from '@/contexts/AppContext';
 import { ArrowLeft, Plus, Trash2, Search, ChevronRight, Upload, CheckCircle, RotateCcw, BookOpen, FileUp, Loader2, FolderOpen, Pencil, ImagePlus, Download, X as XIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import ChapterPdfsSection from '@/components/ChapterPdfsSection';
 
 const formatBytes = (bytes: number) => {
   if (!bytes) return '0 o';
@@ -582,6 +583,15 @@ export function CoursesPage() {
     setSelectedChapter(prev => prev ? { ...prev, images } : prev);
   };
 
+  const handleUpdateChapterPdfs = (pdfs: ChapterPdf[]) => {
+    if (!selectedSubject || !selectedChapter) return;
+    setSubjects(prev => prev.map(s => s.id === selectedSubject.id
+      ? { ...s, chapitres: s.chapitres.map(c => c.id === selectedChapter.id ? { ...c, pdfs } : c) }
+      : s
+    ));
+    setSelectedChapter(prev => prev ? { ...prev, pdfs } : prev);
+  };
+
   // ── Chapter View ────────────────────────────────────────────────────────────
   if (selectedChapter && selectedSubject) {
     return (
@@ -632,6 +642,12 @@ export function CoursesPage() {
           subjectId={selectedSubject.id}
           isAdmin={isAdmin}
           onUpdate={handleUpdateChapterImages}
+        />
+
+        <ChapterPdfsSection
+          chapter={selectedChapter}
+          isAdmin={isAdmin}
+          onUpdate={handleUpdateChapterPdfs}
         />
 
         {selectedChapter.schemas_detectes.length > 0 && (
